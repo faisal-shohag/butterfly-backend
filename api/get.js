@@ -7,6 +7,17 @@ router.get('/users', async (req, res) => {
     res.json(users)
 })
 
+//get single user
+router.get('/users/:email', async(req, res)=>{
+    const email = req.params.email;
+    const user = await prisma.user.findFirst({
+        where : {
+            email
+        }
+    })
+
+    return res.json({status: 200, data:user})
+})
 
 
 
