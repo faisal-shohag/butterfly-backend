@@ -13,14 +13,130 @@ datasource db {
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
-
-model User{
+model User {
   id          Int         @id  @default(autoincrement())
   firstName   String      
   lastName    String
   email       String      @unique
   password    String      
-  photoURL   String  @default("https://i.postimg.cc/5tqhtjwH/image.png")
-  userId     String?
+  photoURL    String      @default("https://i.postimg.cc/5tqhtjwH/image.png")
+  coverPhoto  String      @default("https://i.postimg.cc/05wQx63s/image.png")
+  userId      String?
+  posts       Post[]
+  comments    Comment[]
+  replies     Reply[]
+  likes       Like[] 
+  books       Book[]
 }
 
+model Book {
+  id              Int               @id @default(autoincrement())
+  title           String
+  isbn            String?
+  publishedYear   String?
+  publisher       String?
+  description     String?
+  cover      String?
+  genre           String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          Int
+  samplePhotos    BookSamplePhoto[]
+}
+
+model LookingFor {
+  id              Int               @id @default(autoincrement())
+  title String
+  cover String?
+  description String?
+  price Float
+}
+
+model BookSamplePhoto {
+  id        Int      @id @default(autoincrement())
+  url       String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  bookId    Int
+
+  @@index([bookId])
+}
+
+
+model Post{
+  id          Int         @id @default(autoincrement())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  content     String
+  author      User        @relation(fields: [authorId], references: [id])
+  authorId    Int
+  comments    Comment[]
+  likes       Like[]
+  images      Image[]     @relation("PostImages")
+  type        String?
+
+  @@index([authorId])
+}
+
+
+model Comment {
+  id          Int           @id @default(autoincrement())
+  content     String        
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  author      User          @relation(fields: [authorId], references: [id])
+  authorId    Int
+  post        Post          @relation(fields : [postId], references: [id])
+  postId      Int
+  replies     Reply[]
+  likes       Like[]
+  images      Image[]       @relation("CommentImages")
+
+
+  @@index([authorId])
+  @@index([postId])
+}
+
+model Reply {
+  id          Int             @id  @default(autoincrement())
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  content     String
+  author      User            @relation(fields : [authorId], references: [id])
+  authorId    Int
+  comment     Comment       @relation(fields: [commentId], references: [id])
+  commentId   Int
+  likes       Like[]
+
+  @@index([authorId])
+  @@index([commentId])
+}
+
+model Like {
+  id          Int             @id @default(autoincrement())
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  user        User            @relation(fields : [userId], references: [id])
+  userId      Int
+  post        Post?           @relation(fields: [postId], references: [id])
+  postId      Int?
+  comment     Comment?        @relation(fields: [commentId], references: [id])
+  commentId   Int?
+  reply       Reply?          @relation(fields: [replyId], references: [id])
+  replyId     Int?
+
+  @@unique([userId, postId, commentId, replyId])
+  @@index([userId])
+}
+
+
+model Image {
+  id        Int      @id @default(autoincrement())
+  url       String
+  fileId    String?
+  post      Post?    @relation("PostImages", fields: [postId], references: [id], onDelete: Cascade)
+  postId    Int?
+  comment   Comment? @relation("CommentImages", fields: [commentId], references: [id], onDelete: Cascade)
+  commentId Int?
+
+  @@index([postId])
+  @@index([commentId])
+}
