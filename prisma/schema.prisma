@@ -14,4 +14,13 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model User{
+  id          Int         @id  @default(autoincrement())
+  firstName   String      
+  lastName    String
+  email       String      @unique
+  password    String      
+  photoURL   String  @default("https://i.postimg.cc/5tqhtjwH/image.png")
+  userId     String?
+}
 
