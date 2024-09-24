@@ -13,15 +13,20 @@ datasource db {
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
-
-model User{
+model User {
   id          Int         @id  @default(autoincrement())
   firstName   String      
   lastName    String
   email       String      @unique
   password    String      
-  photoURL   String  @default("https://i.postimg.cc/5tqhtjwH/image.png")
-  userId     String?
+  photoURL    String      @default("https://i.postimg.cc/5tqhtjwH/image.png")
+  coverPhoto  String      @default("https://i.postimg.cc/05wQx63s/image.png")
+  userId      String?
+  posts       Post[]
+  comments    Comment[]
+  replies     Reply[]
+  likes       Like[] 
+  books       Book[]
 }
 
 model Post{
