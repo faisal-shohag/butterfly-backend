@@ -14,27 +14,13 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-Model User{
-  id          Int         @id @default(autoIncrement())
+model User{
+  id          Int         @id  @default(autoincrement())
   firstName   String      
   lastName    String
   email       String      @unique
-  password    String      @unique
-  role        Role        @default(USER)
-  isAdmin     Boolean     @default(false)
-  profile     Profile?    
- 
-}
-
-Model Profile{
-  id          Int         @id @default(autoIncrement())
-  bio         String?
-  user        User?       @relation(fields : [userId], references: [id])
-  userId      Int?
-}
-
-enum Role{
-  USER
-  ADMIN
+  password    String      
+  photoURL   String  @default("https://i.postimg.cc/5tqhtjwH/image.png")
+  userId     String?
 }
 
