@@ -14,14 +14,12 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 model User {
-  id          Int         @id  @default(autoincrement())
-  firstName   String      
-  lastName    String
+  id        String  @id @default(uuid())
+  full_name String
   email       String      @unique
-  password    String      
-  photoURL    String      @default("https://i.postimg.cc/5tqhtjwH/image.png")
+  password    String?      
+  avatar_url    String      @default("https://i.postimg.cc/5tqhtjwH/image.png")
   coverPhoto  String      @default("https://i.postimg.cc/05wQx63s/image.png")
-  userId      String?
   posts       Post[]
   comments    Comment[]
   replies     Reply[]
@@ -32,23 +30,17 @@ model User {
 model Book {
   id              Int               @id @default(autoincrement())
   title           String
+  author          String
   isbn            String?
   publishedYear   String?
   publisher       String?
   description     String?
-  cover      String?
+  cover           String?
   genre           String
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId          Int
+  userId          String             // `userId` should reference the `User`'s id, and it should be `Int` to match the `User` model's `id`
   samplePhotos    BookSamplePhoto[]
-}
-
-model LookingFor {
-  id              Int               @id @default(autoincrement())
-  title String
-  cover String?
-  description String?
-  price Float
+  lookingFor      Json //title, author, cover, genre, description, 
 }
 
 model BookSamplePhoto {
@@ -67,7 +59,7 @@ model Post{
   updatedAt   DateTime    @updatedAt
   content     String
   author      User        @relation(fields: [authorId], references: [id])
-  authorId    Int
+  authorId    String
   comments    Comment[]
   likes       Like[]
   images      Image[]     @relation("PostImages")
@@ -83,7 +75,7 @@ model Comment {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   author      User          @relation(fields: [authorId], references: [id])
-  authorId    Int
+  authorId    String
   post        Post          @relation(fields : [postId], references: [id])
   postId      Int
   replies     Reply[]
@@ -101,7 +93,7 @@ model Reply {
   updatedAt   DateTime        @updatedAt
   content     String
   author      User            @relation(fields : [authorId], references: [id])
-  authorId    Int
+  authorId    String
   comment     Comment       @relation(fields: [commentId], references: [id])
   commentId   Int
   likes       Like[]
@@ -115,7 +107,7 @@ model Like {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   user        User            @relation(fields : [userId], references: [id])
-  userId      Int
+  userId      String
   post        Post?           @relation(fields: [postId], references: [id])
   postId      Int?
   comment     Comment?        @relation(fields: [commentId], references: [id])

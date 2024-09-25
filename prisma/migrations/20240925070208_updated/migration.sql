@@ -1,5 +1,22 @@
+/*
+  Warnings:
+
+  - You are about to drop the column `firstName` on the `User` table. All the data in the column will be lost.
+  - You are about to drop the column `lastName` on the `User` table. All the data in the column will be lost.
+  - You are about to drop the column `photoURL` on the `User` table. All the data in the column will be lost.
+  - You are about to drop the column `userId` on the `User` table. All the data in the column will be lost.
+  - Added the required column `full_name` to the `User` table without a default value. This is not possible if the table is not empty.
+
+*/
 -- AlterTable
-ALTER TABLE "User" ADD COLUMN     "coverPhoto" TEXT NOT NULL DEFAULT 'https://i.postimg.cc/05wQx63s/image.png';
+ALTER TABLE "User" DROP COLUMN "firstName",
+DROP COLUMN "lastName",
+DROP COLUMN "photoURL",
+DROP COLUMN "userId",
+ADD COLUMN     "avatar_url" TEXT NOT NULL DEFAULT 'https://i.postimg.cc/5tqhtjwH/image.png',
+ADD COLUMN     "coverPhoto" TEXT NOT NULL DEFAULT 'https://i.postimg.cc/05wQx63s/image.png',
+ADD COLUMN     "full_name" TEXT NOT NULL,
+ALTER COLUMN "password" DROP NOT NULL;
 
 -- CreateTable
 CREATE TABLE "Book" (
