@@ -15,13 +15,11 @@ datasource db {
 }
 model User {
   id          Int         @id  @default(autoincrement())
-  firstName   String      
-  lastName    String
+  displayName String
   email       String      @unique
-  password    String      
+  password    String?      
   photoURL    String      @default("https://i.postimg.cc/5tqhtjwH/image.png")
   coverPhoto  String      @default("https://i.postimg.cc/05wQx63s/image.png")
-  userId      String?
   posts       Post[]
   comments    Comment[]
   replies     Reply[]
