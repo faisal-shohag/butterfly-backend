@@ -6,6 +6,7 @@ const port = 5000
 
 import get from './api/get.js'
 import post from './api/post.js'
+import deleted from './api/delete.js'
 
 
 app.use(cors())
@@ -21,6 +22,7 @@ app.get('/', (req, res) => {
 
 app.use(get)
 app.use(post)
+app.use(deleted)
 
 app.listen(port, () => {
     console.log(`App listening on port ${port}`)
