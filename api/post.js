@@ -10,6 +10,32 @@ router.post('/users', async (req, res) => {
     res.json(user)
 })
 
+//book post
+router.post('/books', async (req, res) => {
+    try {
+        const { title, isbn, author, cover, genre, publisher, publishedYear, description, lookingFor } = req.body;
+        const newBook = await prisma.book.create({
+            data: {
+                title,
+                author,
+                genre,
+                publishedYear,
+                description,
+                lookingFor,
+                cover,
+                isbn,
+                publisher
+            }
+        })
+        res.status(200).json(newBook)
+   
+        
+    } catch (error) {
+        console.log(error)  
+        res.status(500).json({ error: "Internal server error" })
+    }
+})   
+
 
 //create a post
 router.post('/post', async(req, res)=>{
