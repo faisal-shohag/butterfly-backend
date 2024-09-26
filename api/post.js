@@ -53,7 +53,10 @@ router.post('/post', async(req, res)=>{
             data : {
                 content,
                 authorId,
-                type: type || null
+                type: type || null,
+                images : {
+                    create: images.map(({ url, fileId }) => ({ url, fileId })),
+                },
             }
         })
 
@@ -73,7 +76,7 @@ router.post('/posts/:postId/comment', async(req, res)=>{
         const newComment = await prisma.comment.create({
             data: {
                 content,
-                authorId : parseInt(authorId),
+                authorId,
                 postId: postId,
                 images : {
                     create: images.map(({ url, fileId }) => ({ url, fileId })),
