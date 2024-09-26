@@ -114,7 +114,7 @@ model Like {
 model Image {
   id        Int      @id @default(autoincrement())
   url       String
-  fileId    String?
+  fileId    String? 
   postId    Int?
   commentId Int?
   comment   Comment? @relation("CommentImages", fields: [commentId], references: [id], onDelete: Cascade)
