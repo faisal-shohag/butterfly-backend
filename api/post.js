@@ -13,7 +13,7 @@ router.post('/users', async (req, res) => {
 //book post
 router.post('/books', async (req, res) => {
     try {
-        const { title, isbn, author, cover, genre, publisher, publishedYear, description, lookingFor } = req.body;
+        const { title, isbn, author, cover, genre, publisher, publishedYear, description, lookingFor, userId } = req.body;
         const newBook = await prisma.book.create({
             data: {
                 title,
@@ -24,7 +24,15 @@ router.post('/books', async (req, res) => {
                 lookingFor,
                 cover,
                 isbn,
-                publisher
+                publisher,
+                user : {
+                    connect : {
+                        id : userId
+                    }
+                }
+            },
+            include : {
+                user: true
             }
         })
         res.status(200).json(newBook)
@@ -32,7 +40,7 @@ router.post('/books', async (req, res) => {
         
     } catch (error) {
         console.log(error)  
-        res.status(500).json({ error: "Internal server error" })
+        res.status(500).json({ error: error.message })
     }
 })   
 
@@ -44,8 +52,11 @@ router.post('/post', async(req, res)=>{
         const newPost = await prisma.post.create({
             data : {
                 content,
-                authorId: parseInt(authorId),
-                type: type || null
+                authorId,
+                type: type || null,
+                images : {
+                    create: images.map(({ url, fileId }) => ({ url, fileId })),
+                },
             }
         })
 
@@ -65,7 +76,7 @@ router.post('/posts/:postId/comment', async(req, res)=>{
         const newComment = await prisma.comment.create({
             data: {
                 content,
-                authorId : parseInt(authorId),
+                authorId,
                 postId: postId,
                 images : {
                     create: images.map(({ url, fileId }) => ({ url, fileId })),
