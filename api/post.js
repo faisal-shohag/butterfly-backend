@@ -52,7 +52,7 @@ router.post('/post', async(req, res)=>{
         const newPost = await prisma.post.create({
             data : {
                 content,
-                authorId: parseInt(authorId),
+                authorId,
                 type: type || null
             }
         })
