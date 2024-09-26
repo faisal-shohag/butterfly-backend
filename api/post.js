@@ -46,25 +46,32 @@ router.post('/books', async (req, res) => {
 
 
 //create a post
-router.post('/post', async(req, res)=>{
+router.post('/post', async(req, res) => {
     try {
-        const {content, authorId, type} = req.body;
+        const { content, authorId, type, images } = req.body;
+        
         const newPost = await prisma.post.create({
-            data : {
+            data: {
                 content,
                 authorId,
                 type: type || null,
-                images : {
+               ...(images && images.length > 0) && {
+                images: {
                     create: images.map(({ url, fileId }) => ({ url, fileId })),
-                },
+                  },
+               }
+            },
+            include: {
+                images: true,  
             }
-        })
+        });
 
-        return res.json({data: newPost, message: "New post added"})
+        return res.json({ data: newPost, message: "New post added" });
     } catch (error) {
-        return res.status(400).json({error : error.message})
+        return res.status(400).json({ error: error.message });
     }
-})
+});
+
 
 
 //post a comment
