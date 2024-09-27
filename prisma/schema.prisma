@@ -1,133 +1,124 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
+
 model User {
-  id        String  @id @default(uuid())
-  full_name String
-  email       String      @unique
-  password    String?      
-  avatar_url    String      @default("https://i.postimg.cc/5tqhtjwH/image.png")
-  coverPhoto  String      @default("https://i.postimg.cc/05wQx63s/image.png")
-  posts       Post[]
-  comments    Comment[]
-  replies     Reply[]
-  likes       Like[] 
-  books       Book[]
+  id         String    @id @default(uuid())
+  email      String    @unique
+  password   String?
+  avatar_url String    @default("https://i.postimg.cc/5tqhtjwH/image.png")
+  coverPhoto String    @default("https://i.postimg.cc/05wQx63s/image.png")
+  full_name  String
+  books      Book[]
+  comments   Comment[]
+  likes      Like[]
+  posts      Post[]
+  replies    Reply[]
 }
 
 model Book {
-  id              Int               @id @default(autoincrement())
-  title           String
-  author          String
-  isbn            String?
-  publishedYear   String?
-  publisher       String?
-  description     String?
-  cover           String?
-  genre           String
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId          String             // `userId` should reference the `User`'s id, and it should be `Int` to match the `User` model's `id`
-  samplePhotos    BookSamplePhoto[]
-  lookingFor      Json //title, author, cover, genre, description, 
+  id            Int               @id @default(autoincrement())
+  title         String
+  isbn          String?
+  publishedYear String?
+  publisher     String?
+  description   String?
+  cover         String?
+  genre         String
+  userId        String
+  lookingFor    Json
+  author        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  samplePhotos  BookSamplePhoto[]
 }
 
 model BookSamplePhoto {
-  id        Int      @id @default(autoincrement())
-  url       String
-  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  bookId    Int
+  id     Int    @id @default(autoincrement())
+  url    String
+  bookId Int
+  book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
 
   @@index([bookId])
 }
 
-
-model Post{
-  id          Int         @id @default(autoincrement())
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  content     String
-  author      User        @relation(fields: [authorId], references: [id])
-  authorId    String
-  comments    Comment[]
-  likes       Like[]
-  images      Image[]     @relation("PostImages")
-  type        String?
+model Post {
+  id        Int       @id @default(autoincrement())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  content   String
+  authorId  String
+  type      String?
+  comments  Comment[]
+  images    Image[]   @relation("PostImages")
+  likes     Like[]
+  author    User      @relation(fields: [authorId], references: [id])
 
   @@index([authorId])
 }
 
-
 model Comment {
-  id          Int           @id @default(autoincrement())
-  content     String        
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  author      User          @relation(fields: [authorId], references: [id])
-  authorId    String
-  post        Post          @relation(fields : [postId], references: [id])
-  postId      Int
-  replies     Reply[]
-  likes       Like[]
-  images      Image[]       @relation("CommentImages")
-
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  authorId  String
+  postId    Int
+  author    User     @relation(fields: [authorId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id])
+  images    Image[]  @relation("CommentImages")
+  likes     Like[]
+  replies   Reply[]
 
   @@index([authorId])
   @@index([postId])
 }
 
 model Reply {
-  id          Int             @id  @default(autoincrement())
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  content     String
-  author      User            @relation(fields : [authorId], references: [id])
-  authorId    String
-  comment     Comment       @relation(fields: [commentId], references: [id])
-  commentId   Int
-  likes       Like[]
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  content   String
+  authorId  String
+  commentId Int
+  likes     Like[]
+  author    User     @relation(fields: [authorId], references: [id])
+  comment   Comment  @relation(fields: [commentId], references: [id])
 
   @@index([authorId])
   @@index([commentId])
 }
 
 model Like {
-  id          Int             @id @default(autoincrement())
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  user        User            @relation(fields : [userId], references: [id])
-  userId      String
-  post        Post?           @relation(fields: [postId], references: [id])
-  postId      Int?
-  comment     Comment?        @relation(fields: [commentId], references: [id])
-  commentId   Int?
-  reply       Reply?          @relation(fields: [replyId], references: [id])
-  replyId     Int?
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  postId    Int?
+  commentId Int?
+  replyId   Int?
+  comment   Comment? @relation(fields: [commentId], references: [id])
+  post      Post?    @relation(fields: [postId], references: [id])
+  reply     Reply?   @relation(fields: [replyId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, postId, commentId, replyId])
   @@index([userId])
 }
 
-
 model Image {
   id        Int      @id @default(autoincrement())
   url       String
-  fileId    String?
-  post      Post?    @relation("PostImages", fields: [postId], references: [id], onDelete: Cascade)
+  fileId    String? 
   postId    Int?
-  comment   Comment? @relation("CommentImages", fields: [commentId], references: [id], onDelete: Cascade)
   commentId Int?
+  comment   Comment? @relation("CommentImages", fields: [commentId], references: [id], onDelete: Cascade)
+  post      Post?    @relation("PostImages", fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId])
   @@index([commentId])

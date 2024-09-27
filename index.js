@@ -9,6 +9,7 @@ import post from './api/post.js'
 import put from './api/put.js'
 import genai from './api/genai.js';
 import forum from './api/forum.js';
+import deleted from './api/delete.js'
 
 
 app.use(cors())
@@ -27,6 +28,7 @@ app.use(post)
 app.use(put)
 app.use(genai)
 app.use(forum)
+app.use(deleted)
 
 app.listen(port, () => {
     console.log(`App listening on port ${port}`)

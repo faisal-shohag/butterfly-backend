@@ -93,8 +93,48 @@ router.get("/all_books", async (req, res) => {
 
 //get all posts
 router.get("/posts", async (req, res) => {
-  const posts = await prisma.post.findMany();
-  return res.json(posts);
+  try {
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+    const skip = (page -1) * limit;
+
+    const [posts, totalCount] = await Promise.all([
+      prisma.post.findMany({
+        skip,
+        take: limit,
+        orderBy : {
+          createdAt : 'desc'
+        },
+        include :{
+          author: true,
+          comments: {
+            select: {
+              id: true,
+            },
+          },
+          likes: {
+            select: {
+              id: true,
+              userId: true,
+            },
+          },
+        }
+
+      }),
+      prisma.post.count()
+    ])
+
+    return res.json({
+      posts: posts,
+      currentPage: page,
+      totalPages: Math.ceil(totalCount / limit),
+      totalCount,
+    })
+  } catch (error) {
+    return res.status(400).json({error: error.message})
+  }
+  // const posts = await prisma.post.findMany();
+  // return res.json(posts);
 });
 
 //get single post
