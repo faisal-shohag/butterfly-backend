@@ -17,7 +17,13 @@ router.get("/users/:id", async (req, res) => {
   try {
     const id = req.params.id;
     const user = await prisma.user.findUnique({
-      where: { id },
+      where: {
+        id,
+      },
+      include: {
+        posts: true,
+        books: true,
+      },
     });
     return res.status(200).json(user);
   } catch (error) {
@@ -28,13 +34,61 @@ router.get("/users/:id", async (req, res) => {
 
 //get books
 router.get("/books", async (req, res) => {
-   try {
-     const books = await prisma.book.findMany();
-     return res.status(200).json(books);
-   } catch (error) {
-     console.log(error);
-     return res.status(500).json({ error: "Internal server error" });
-   }
+  try {
+    const books = await prisma.book.findMany({include:{user: true}});
+    return res.status(200).json(books);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/books/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const book = await prisma.book.findUnique({
+      where: {
+        id,
+        
+      },
+      include:{
+        samplePhotos: true,
+        user: true,
+      }
+    });
+    return res.status(200).json(book);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/all_books", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const books = await prisma.book.findMany({
+      include: { user: true },
+      skip,
+      take: limit,
+      orderBy: { id: 'desc' }
+    });
+
+    const totalBooks = await prisma.book.count();
+    const totalPages = Math.ceil(totalBooks / limit);
+
+    return res.status(200).json({
+      books,
+      currentPage: page,
+      totalPages,
+      totalBooks
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 //get all posts
