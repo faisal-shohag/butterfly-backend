@@ -6,6 +6,9 @@ const port = 5000
 
 import get from './api/get.js'
 import post from './api/post.js'
+import put from './api/put.js'
+import genai from './api/genai.js';
+import forum from './api/forum.js';
 
 
 app.use(cors())
@@ -21,6 +24,9 @@ app.get('/', (req, res) => {
 
 app.use(get)
 app.use(post)
+app.use(put)
+app.use(genai)
+app.use(forum)
 
 app.listen(port, () => {
     console.log(`App listening on port ${port}`)
