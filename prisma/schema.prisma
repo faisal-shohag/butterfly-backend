@@ -10,16 +10,81 @@ datasource db {
 
 model User {
   id         String    @id @default(uuid())
+  name       String
+  username    String? @unique
+  emailVerified DateTime?
   email      String    @unique
   password   String?
-  avatar_url String    @default("https://i.postimg.cc/5tqhtjwH/image.png")
-  coverPhoto String    @default("https://i.postimg.cc/05wQx63s/image.png")
-  full_name  String
+  image  String?
+  coverPhoto String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role String?
+   accounts      Account[]
+  sessions      Session[]
   books      Book[]
   comments   Comment[]
   likes      Like[]
   posts      Post[]
   replies    Reply[]
+     followers     Follows[] @relation("following")
+  following     Follows[] @relation("follower")
+
+
+
+  @@map("users")
+}
+
+model Follows {
+  follower    User     @relation("follower", fields: [followerId], references: [id])
+  followerId  String
+  following   User     @relation("following", fields: [followingId], references: [id])
+  followingId String
+  createdAt   DateTime @default(now())
+
+  @@id([followerId, followingId])
+  @@map("follows")
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@id([provider, providerAccountId])
+  @@map("accounts")
+}
+
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
 }
 
 model Book {
