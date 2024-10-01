@@ -11,7 +11,7 @@ router.post('/users', async (req, res) => {
 
 
 router.post('/add_book/:id', async (req, res) => {
-    console.log(req.params.id);
+    // console.log(req.params.id);
     try {
       const userId = req.params.id;
       const { title, author, isbn, publishedYear, publisher, description, cover, genre, lookingFor } = req.body;

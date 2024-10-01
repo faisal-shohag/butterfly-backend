@@ -12,6 +12,26 @@ router.get("/users", async (req, res) => {
   }
 });
 
+router.get('/check-username/:username', async (req, res) => {
+  const { username } = req.params;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { username },
+      select: { id: true }, // We only need to know if the user exists, not their details
+    });
+
+    if (user) {
+      res.json({ exists: true, available: false });
+    } else {
+      res.json({ exists: false, available: true });
+    }
+  } catch (error) {
+    console.error('Error checking username:', error);
+    res.status(500).json({ error: 'Unable to check username availability' });
+  }
+});
+
 //get single user
 router.get("/users/:id", async (req, res) => {
   try {
