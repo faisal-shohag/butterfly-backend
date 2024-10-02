@@ -25,14 +25,28 @@ model User {
   books      Book[]
   comments   Comment[]
   likes      Like[]
+  bookLikes  BookLike[]
   posts      Post[]
   replies    Reply[]
      followers     Follows[] @relation("following")
   following     Follows[] @relation("follower")
-
+  coins Coin[]
+  requests Request[]
 
 
   @@map("users")
+}
+
+model Coin {
+  id         String    @id @default(uuid())
+  type String?
+  reason String?
+  value Float @default(0)
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  
+  @@map("coins")
 }
 
 model Follows {
@@ -101,6 +115,24 @@ model Book {
   author        String
   user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   samplePhotos  BookSamplePhoto[]
+  likes         BookLike[]
+  requests      Request[]          
+  createdAt     DateTime @default(now())
+  @@index([userId])
+}
+
+model BookLike {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  bookId    Int
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, bookId])
+  @@index([userId])
+  @@index([bookId])
 }
 
 model BookSamplePhoto {
@@ -109,6 +141,38 @@ model BookSamplePhoto {
   bookId Int
   book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
 
+  @@index([bookId])
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String   // Relation to Book
+  postId    Int?
+  commentId Int?
+  replyId   Int?
+  post      Post?    @relation(fields: [postId], references: [id])
+  comment   Comment? @relation(fields: [commentId], references: [id])
+  reply     Reply?   @relation(fields: [replyId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, postId, commentId, replyId])
+  @@index([userId])
+}
+
+model Request {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  requesterId String
+  bookId     Int
+  message    String?  // Optional request message
+  status     String    // Request status (e.g., pending, approved, rejected)
+  book       Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  requester  User     @relation(fields: [requesterId], references: [id])
+
+  @@index([requesterId])
   @@index([bookId])
 }
 
@@ -157,23 +221,6 @@ model Reply {
 
   @@index([authorId])
   @@index([commentId])
-}
-
-model Like {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  userId    String
-  postId    Int?
-  commentId Int?
-  replyId   Int?
-  comment   Comment? @relation(fields: [commentId], references: [id])
-  post      Post?    @relation(fields: [postId], references: [id])
-  reply     Reply?   @relation(fields: [replyId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@unique([userId, postId, commentId, replyId])
-  @@index([userId])
 }
 
 model Image {

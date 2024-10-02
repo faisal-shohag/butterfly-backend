@@ -36,11 +36,58 @@ router.post('/add_book/:id', async (req, res) => {
           userId  
         }
       });
+
+      await prisma.coin.create({
+        data: {
+          type: 'book_post',
+          value: 1,
+          reason: 'For adding a book for exchanging',
+          userId: userId
+        }
+      })
   
       res.status(201).json({ message: 'Book added successfully', book: newBook });
     } catch (error) {
       console.error('Error adding book:', error);
       res.status(500).json({ error: 'An error occurred while adding the book' });
+    }
+  });
+
+
+  router.post('/toggle-book-like', async (req, res) => {
+    const { userId, bookId } = req.body;
+
+    // console.log("toggle Like", userId)
+  
+    try {
+      const existingLike = await prisma.bookLike.findUnique({
+        where: {
+        userId_bookId: {
+            userId,
+            bookId,
+          },
+        },
+      });
+  
+      if (existingLike) {
+        // Unlike
+        await prisma.bookLike.delete({
+          where: { id: existingLike.id },
+        });
+        res.json({ liked: false });
+      } else {
+        // Like
+        await prisma.bookLike.create({
+          data: {
+            userId,
+            bookId,
+          },
+        });
+        res.json({ liked: true });
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      res.status(500).json({ error: 'An error occurred while toggling the like' });
     }
   });
 
