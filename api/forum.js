@@ -31,6 +31,53 @@ router.post("/posts", async (req, res) => {
   }
 });
 
+
+// get top 5 posts
+
+router.get('/get-popular-posts', async (req, res) => {
+  try {
+    const popularPosts = await prisma.post.findMany({
+      orderBy: {
+        likes: {
+          _count: 'desc',
+        },
+      },
+      take: 5,
+      include: {
+        author: true,
+        comments: {
+          select: {
+            id: true,
+          },
+        },
+        likes: {
+          select: {
+            id: true,
+            userId: true,
+          },
+        },
+        images: true,
+        // type: true,
+      },
+    });
+
+    const formattedPosts = popularPosts.map((post) => {
+      return ({
+      ...post,
+      commentCount: post.comments.length,
+      likeCount: post.likes.length,
+      isLiked: post.likes.some((like) => like.userId === req.userId),
+      comments: undefined,
+      likes: undefined,
+    })});
+
+    res.json(formattedPosts);
+  } catch (error) {
+    console.error('Error fetching popular posts:', error);
+    res.status(500).json({ error: 'An error occurred while fetching popular posts' });
+  }
+})
+
 router.get("/allposts/:userId", async (req, res) => {
   const userId = req.params.userId;
   try {
