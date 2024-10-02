@@ -83,28 +83,75 @@ router.get("/books/:id", async (req, res) => {
   }
 });
 
-router.get("/all_books", async (req, res) => {
+router.get("/all_books/:userId", async (req, res) => {
+  // console.log(req.params.userId)
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const userId = req.params.userId;
 
     const books = await prisma.book.findMany({
-      include: { user: true },
+      include: { 
+        user: true,
+        likes: true,
+      },
       skip,
       take: limit,
       orderBy: { id: 'desc' }
     });
 
+ 
+
+    const booksWithLikeInfo = books.map(book => {
+      // console.log(book);
+      return ({
+      ...book,
+      isLiked: userId ? book.likes.some(like => like.userId === userId) : false,
+      likeCount: book.likes.length,
+      likes: undefined, // Remove the likes array from the response
+    })});
+
     const totalBooks = await prisma.book.count();
     const totalPages = Math.ceil(totalBooks / limit);
 
     return res.status(200).json({
-      books,
+      books: booksWithLikeInfo,
       currentPage: page,
       totalPages,
       totalBooks
     });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/latest-books/:userId", async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const books = await prisma.book.findMany({
+      include: { 
+        user: true,
+        likes: true,
+      },
+      take: 5,
+      orderBy: { createdAt: 'desc' }
+    });
+
+
+    const booksWithLikeInfo = books.map(book => {
+      return ({
+      ...book,
+      isLiked: userId ? book.likes.some(like => like.userId === userId) : false,
+      likeCount: book.likes.length,
+      likes: undefined, // Remove the likes array from the response
+    })});
+
+
+
+    return res.status(200).json({books: booksWithLikeInfo});
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Internal server error" });
