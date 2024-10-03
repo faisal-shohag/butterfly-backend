@@ -52,6 +52,58 @@ router.get("/users/:id", async (req, res) => {
   }
 });
 
+
+//get most coined users
+router.get("/most-coined-users", async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      include: {
+        _count: {
+          select: {
+            coins: true,
+          },
+        },
+      },
+      orderBy: {
+        coins: {
+          _count: "desc",
+        },
+      },
+      take: 5,
+    });
+    return res.status(200).json(users);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+//hive hunters
+router.get("/hive-hunters", async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      include: {
+        _count: {
+          select: {
+            posts: true,
+          },
+        },
+      },
+      orderBy: {
+        posts: {
+          _count: "desc",
+        },
+      },
+      take: 5,
+    });
+    return res.status(200).json(users);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 //get books
 router.get("/books", async (req, res) => {
   try {
