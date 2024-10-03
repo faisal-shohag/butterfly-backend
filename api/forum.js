@@ -610,4 +610,100 @@ router.post('/toggle-follow/:id', async (req, res) => {
   }
 });
 
+
+
+
+// homepage
+//popular posts
+router.get('/popular-posts', async (req, res)=> {
+   try {
+    const popularPosts = await prisma.post.findMany({
+      orderBy: {
+          likes: {
+              _count: "desc",
+          },
+      },
+      take: 5,
+      include: {
+          author: true,
+          _count: {
+              select: {
+                  likes: true,
+                  comments: true,
+              },
+          },
+          images: true,
+      },
+  })
+  res.status(200).json(popularPosts);
+
+   } catch (error) {
+    console.error('Error fetching popular posts:', error);
+    res.status(500).json({ error: 'Unable to fetch popular posts' });
+   }
+})
+
+
+// who to folow 
+router.get('/suggested-to-follow-users/:userId', async (req, res)=> {
+  try {
+    const userId = req.params.userId
+    let usersToFollow = []
+    if(!userId){
+      usersToFollow = await prisma.user.findMany({
+        take: 3,
+        select: {
+            id: true,
+            name: true,
+            image: true,
+            username: true,
+        }
+    })
+    }else {
+      usersToFollow = await prisma.user.findMany({
+        where: {
+            NOT: {
+                id: userId
+            }
+        },
+        take: 3,
+        select: {
+            id: true,
+            name: true,
+            image: true,
+            username: true,
+        }
+    })
+    }
+
+    res.status(200).json(usersToFollow);
+  } catch (error) {
+    console.error('Error fetching suggested users:', error);
+    res.status(500).json({ error: 'Unable to fetch suggested users' });
+  }
+})
+
+
+BigInt.prototype.toJSON = function() {       
+  return this.toString()
+}
+
+//trensding topics
+router.get('/trending-topics', async (req, res)=> {
+  try {
+    const trendingTopics = await prisma.$queryRaw`
+    SELECT LOWER(unnest(regexp_matches(content, '#[[:alnum:]_]+', 'g'))) AS hashtag, COUNT(*) AS count
+    FROM "Post"
+    GROUP BY hashtag
+    ORDER BY count DESC, hashtag ASC
+    LIMIT 5
+`;
+  res.status(200).json(trendingTopics);
+
+  } catch (error) {
+    console.error('Error fetching trending topics:', error);
+    res.status(500).json({ error: 'Unable to fetch trending topics' });
+  }
+})
+
 export default router;
