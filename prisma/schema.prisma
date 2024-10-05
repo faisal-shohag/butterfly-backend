@@ -144,22 +144,7 @@ model BookSamplePhoto {
   @@index([bookId])
 }
 
-model Like {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  userId    String   // Relation to Book
-  postId    Int?
-  commentId Int?
-  replyId   Int?
-  post      Post?    @relation(fields: [postId], references: [id])
-  comment   Comment? @relation(fields: [commentId], references: [id])
-  reply     Reply?   @relation(fields: [replyId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
 
-  @@unique([userId, postId, commentId, replyId])
-  @@index([userId])
-}
 
 model Request {
   id         Int      @id @default(autoincrement())
@@ -191,6 +176,22 @@ model Post {
   @@index([authorId])
 }
 
+model Like {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  userId    String   
+  postId    Int?
+  commentId Int?
+  replyId   Int?
+  post      Post?    @relation(fields: [postId], references: [id])
+  comment   Comment? @relation(fields: [commentId], references: [id])
+  reply     Reply?   @relation(fields: [replyId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, postId, commentId, replyId])
+  @@index([userId])
+}
+
 model Comment {
   id        Int      @id @default(autoincrement())
   content   String
@@ -211,7 +212,7 @@ model Comment {
 model Reply {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // updatedAt DateTime @updatedAt @default(now())
   content   String
   authorId  String
   commentId Int
