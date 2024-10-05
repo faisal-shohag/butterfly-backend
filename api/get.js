@@ -303,4 +303,23 @@ router.get("/comment/:postId", async (req, res) => {
   }
 });
 
+
+router.get('/my-coins/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  try {
+    const coins = await prisma.coin.findMany({
+      where: {
+        userId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    return res.json({ status: 200, data: coins });
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({ error: error.message });
+  }
+})
+
 export default router;
