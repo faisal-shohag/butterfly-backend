@@ -417,13 +417,12 @@ router.post("/posts/:postId/comments", async (req, res) => {
   }
 });
 
-//get comments
 router.get("/posts/:postId/:userId/comments", async (req, res) => {
   try {
-    const { postId } = req.params;
+    const { postId, userId } = req.params;
     const { page = 1, limit = 10 } = req.query;
 
-    const skip = (page - 1) * limit;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const comments = await prisma.comment.findMany({
       where: { postId: parseInt(postId) },
@@ -431,27 +430,22 @@ router.get("/posts/:postId/:userId/comments", async (req, res) => {
         author: {
           select: {
             id: true,
-            displayName: true,
-            photoURL: true,
+            name: true,
+            image: true,
           },
         },
         images: true,
-        likes: true,
-        replies: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                displayName: true,
-                photoURL: true,
-              },
-            },
-            likes: true,
+        likes: {
+          select: {
+            userId: true,
           },
         },
+        _count: {
+          select: { replies: true }
+        }
       },
       orderBy: { createdAt: 'desc' },
-      skip: parseInt(skip),
+      skip: skip,
       take: parseInt(limit),
     });
 
@@ -460,22 +454,22 @@ router.get("/posts/:postId/:userId/comments", async (req, res) => {
     });
 
     const commentsWithLikeInfo = comments.map(comment => ({
-      ...comment,
+      id: comment.id,
+      content: comment.content,
+      createdAt: comment.createdAt,
+      updatedAt: comment.updatedAt,
+      author: comment.author,
+      images: comment.images,
       likeCount: comment.likes.length,
-      isLiked: comment.likes.some(like => like.userId === req.params.userId),
-      commentCount: comment.replies.length, // Add the count of replies
-      replies: comment.replies.map(reply => ({
-        ...reply,
-        likeCount: reply.likes.length,
-        isLiked: reply.likes.some(like => like.userId === req.params.userId),
-      })),
+      isLiked: comment.likes.some(like => like.userId === userId),
+      replyCount: comment._count.replies,
     }));
 
     res.json({
       comments: commentsWithLikeInfo,
       totalComments,
       currentPage: parseInt(page),
-      totalPages: Math.ceil(totalComments / limit),
+      totalPages: Math.ceil(totalComments / parseInt(limit)),
     });
   } catch (error) {
     console.error("Error fetching comments:", error);
@@ -483,8 +477,6 @@ router.get("/posts/:postId/:userId/comments", async (req, res) => {
   }
 });
 
-
-// Add comment like endpoint
 router.post("/comments/:commentId/toggle-like", async (req, res) => {
   try {
     const { commentId } = req.params;
@@ -492,43 +484,41 @@ router.post("/comments/:commentId/toggle-like", async (req, res) => {
 
     const existingLike = await prisma.like.findFirst({
       where: {
-        commentId: parseInt(commentId),
         userId: userId,
+        commentId: parseInt(commentId),
+        postId: null,
+        replyId: null,
       },
     });
 
     if (existingLike) {
+      // Unlike
       await prisma.like.delete({
         where: { id: existingLike.id },
       });
     } else {
+      // Like
       await prisma.like.create({
         data: {
-          comment: { connect: { id: parseInt(commentId) } },
           user: { connect: { id: userId } },
+          comment: { connect: { id: parseInt(commentId) } },
         },
       });
     }
 
+    // Get updated like count
     const updatedComment = await prisma.comment.findUnique({
       where: { id: parseInt(commentId) },
-      include: {
-        likes: true,
-      },
-    });
-
-    const likeCount = await prisma.like.count({
-      where: { commentId: parseInt(commentId) },
+      include: { likes: { select: { id: true } } },
     });
 
     res.json({
-      likesCount: updatedComment.likes.length,
       liked: !existingLike,
+      likesCount: updatedComment.likes.length,
     });
-    // console.log(updatedComment)
   } catch (error) {
     console.error("Error toggling comment like:", error);
-    res.status(500).json({ error: "An error occurred while toggling the comment like" });
+    res.status(500).json({ error: "An error occurred while toggling comment like" });
   }
 });
 
@@ -554,6 +544,102 @@ router.post("/comments/:commentId/replies", async (req, res) => {
   } catch (error) {
     console.error("Error adding reply:", error);
     res.status(500).json({ error: "An error occurred while adding the reply" });
+  }
+});
+
+
+router.delete("/comments/:commentId/:userId", async (req, res) => {
+  const { commentId, userId } = req.params;
+
+  try {
+    // Start a transaction
+    await prisma.$transaction(async (prisma) => {
+      // Fetch the comment and its associated images, likes, and replies
+      const comment = await prisma.comment.findUnique({
+        where: { id: parseInt(commentId) },
+        include: {
+          images: true,
+          likes: true,
+          replies: {
+            include: {
+              likes: true,
+            },
+          },
+        },
+      });
+
+      // If the comment doesn't exist, throw an error
+      if (!comment) {
+        throw new Error("Comment not found");
+      }
+
+      // Check if the comment belongs to the user
+      if (comment.authorId !== userId) {
+        throw new Error("You are not authorized to delete this comment");
+      }
+
+      // Collect all image file IDs for deletion
+      const allImages = comment.images.map(image => image.fileId);
+
+      // Delete associated images from ImageKit (if applicable)
+      const deleteImagePromises = allImages.map((fileId) => {
+        return new Promise((resolve) => {
+          if (!fileId) {
+            resolve({ success: false });
+            return;
+          }
+
+          imageKit.deleteFile(fileId, (error, result) => {
+            if (error) {
+              console.error(`Failed to delete image with fileId ${fileId}:`, error);
+              resolve({ success: false });
+            } else {
+              resolve({ success: true });
+            }
+          });
+        });
+      });
+
+      // Await deletion of images
+      const deleteResults = await Promise.all(deleteImagePromises);
+
+      // Log the image deletion results
+      deleteResults.forEach((result, idx) => {
+        if (result.success) {
+          console.log(`Successfully deleted image with fileId: ${allImages[idx]}`);
+        } else {
+          console.error(`Failed to delete image with fileId: ${allImages[idx]}`);
+        }
+      });
+
+      // Delete all likes associated with the comment and its replies
+      await prisma.like.deleteMany({
+        where: {
+          OR: [
+            { commentId: parseInt(commentId) },
+            { replyId: { in: comment.replies.map(reply => reply.id) } },
+          ],
+        },
+      });
+
+      // Delete replies associated with the comment
+      await prisma.reply.deleteMany({
+        where: { commentId: parseInt(commentId) },
+      });
+
+      // Delete the comment itself
+      await prisma.comment.delete({
+        where: { id: parseInt(commentId) },
+      });
+    });
+
+    // Send a success response
+    res.json({ message: "Comment, associated replies, likes, and images deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting comment, replies, likes, and images:", error);
+    res.status(500).json({
+      error: error.message || "An error occurred while deleting the comment",
+    });
   }
 });
 
