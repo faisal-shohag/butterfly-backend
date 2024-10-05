@@ -307,19 +307,36 @@ router.get("/comment/:postId", async (req, res) => {
 router.get('/my-coins/:userId', async (req, res) => {
   const userId = req.params.userId;
   try {
-    const coins = await prisma.coin.findMany({
+    const recentCoins = await prisma.coin.findMany({
       where: {
         userId,
       },
       orderBy: {
         createdAt: 'desc',
       },
+      take: 5,
     });
-    return res.json({ status: 200, data: coins });
+
+    const totalCoins = await prisma.coin.aggregate({
+      where: {
+        userId,
+      },
+      _sum: {
+        value: true,
+      },
+    });
+
+    return res.json({ 
+      status: 200, 
+      data: {
+        recentCoins,
+        totalCoins: totalCoins._sum.value || 0,
+      }
+    });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return res.status(400).json({ error: error.message });
   }
-})
+});
 
 export default router;
