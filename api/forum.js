@@ -93,7 +93,20 @@ router.get("/allposts/:userId", async (req, res) => {
           createdAt: "desc",
         },
         include: {
-          author: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              username: true,
+              email: true,
+              _count: {
+                select: {
+                  followers: true,
+                }
+              }
+            }
+          },
           comments: {
             select: {
               id: true,
@@ -646,57 +659,6 @@ router.delete("/comments/:commentId/:userId", async (req, res) => {
 
 
 
-//toggle follow
-router.post('/toggle-follow/:id', async (req, res) => {
-  const { id: targetUserId } = req.params;
-  const currentUserId = req.user.id; // Assume we have user authentication middleware
-
-  try {
-    // Check if the user is trying to follow themselves
-    if (currentUserId === targetUserId) {
-      return res.status(400).json({ error: 'You cannot follow yourself' });
-    }
-
-    // Check if the follow relationship already exists
-    const existingFollow = await prisma.follows.findUnique({
-      where: {
-        followerId_followingId: {
-          followerId: currentUserId,
-          followingId: targetUserId,
-        },
-      },
-    });
-
-    let result;
-    if (existingFollow) {
-      // Unfollow: Delete the existing follow relationship
-      await prisma.follows.delete({
-        where: {
-          followerId_followingId: {
-            followerId: currentUserId,
-            followingId: targetUserId,
-          },
-        },
-      });
-      result = { action: 'unfollowed', message: 'User unfollowed successfully' };
-    } else {
-      // Follow: Create a new follow relationship
-      await prisma.follows.create({
-        data: {
-          followerId: currentUserId,
-          followingId: targetUserId,
-        },
-      });
-      result = { action: 'followed', message: 'User followed successfully' };
-    }
-
-    res.json(result);
-  } catch (error) {
-    console.error('Error toggling follow status:', error);
-    res.status(500).json({ error: 'Unable to toggle follow status' });
-  }
-});
-
 
 
 
@@ -738,46 +700,6 @@ router.get('/popular-posts', async (req, res) => {
 })
 
 
-// who to folow 
-router.get('/suggested-to-follow-users/:userId', async (req, res)=> {
-  try {
-    const userId = req.params.userId
-    let usersToFollow = []
-    if(!userId){
-      usersToFollow = await prisma.user.findMany({
-        take: 3,
-        select: {
-            id: true,
-            name: true,
-            image: true,
-            username: true,
-        }
-    })
-    }else {
-      usersToFollow = await prisma.user.findMany({
-        where: {
-            NOT: {
-                id: userId
-            }
-        },
-        take: 3,
-        select: {
-            id: true,
-            name: true,
-            image: true,
-            username: true,
-        }
-    })
-    }
-
-    res.status(200).json(usersToFollow);
-  } catch (error) {
-    console.error('Error fetching suggested users:', error);
-    res.status(500).json({ error: 'Unable to fetch suggested users' });
-  }
-})
-
-
 BigInt.prototype.toJSON = function() {       
   return this.toString()
 }
@@ -790,7 +712,7 @@ router.get('/trending-topics', async (req, res)=> {
     FROM "Post"
     GROUP BY hashtag
     ORDER BY count DESC, hashtag ASC
-    LIMIT 5
+    LIMIT 3
 `;
   res.status(200).json(trendingTopics);
 
@@ -799,5 +721,169 @@ router.get('/trending-topics', async (req, res)=> {
     res.status(500).json({ error: 'Unable to fetch trending topics' });
   }
 })
+
+
+
+
+router.get('/suggested-users', async (req, res) => {
+  try {
+    const { userId, limit = 10 } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    const suggestedUsers = await prisma.user.findMany({
+      where: {
+        AND: [
+          { id: { not: userId } },
+          {
+            NOT: {
+              followers: {
+                some: {
+                  followerId: userId,
+                },
+              },
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        image: true,
+      },
+      take: parseInt(limit),
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    res.json(suggestedUsers);
+  } catch (error) {
+    console.error('Error fetching suggested users:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/toggle-follow/:id', async (req, res) => {
+  const { id: targetUserId } = req.params;
+  const currentUserId = req.body.user.id;
+  // console.log(currentUserId, targetUserId);
+
+  try {
+    // Check if the user is trying to follow themselves
+    if (currentUserId === targetUserId) {
+      return res.status(400).json({ error: 'You cannot follow yourself' });
+    }
+
+    // Check if the follow relationship already exists
+    const existingFollow = await prisma.follows.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: currentUserId,
+          followingId: targetUserId,
+        },
+      },
+    });
+
+    let result;
+    if (existingFollow) {
+      // Unfollow: Delete the existing follow relationship
+      await prisma.follows.delete({
+        where: {
+          followerId_followingId: {
+            followerId: currentUserId,
+            followingId: targetUserId,
+          },
+        },
+      });
+      result = { action: 'unfollowed', message: 'User unfollowed successfully' };
+    } else {
+      // Follow: Create a new follow relationship
+      await prisma.follows.create({
+        data: {
+          followerId: currentUserId,
+          followingId: targetUserId,
+        },
+      });
+      result = { action: 'followed', message: 'User followed successfully' };
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error toggling follow status:', error);
+    res.status(500).json({ error: 'Unable to toggle follow status' });
+  }
+});
+
+router.get('/following-status/:currentUserId/:targetUserId', async (req, res) => {
+  try {
+    const { currentUserId, targetUserId } = req.params;
+
+    if (!currentUserId || !targetUserId) {
+      return res.status(400).json({ error: 'Both currentUserId and targetUserId are required' });
+    }
+
+    const followRelationship = await prisma.follows.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: currentUserId,
+          followingId: targetUserId,
+        },
+      },
+    });
+
+    const isFollowing = !!followRelationship;
+
+    res.json({ isFollowing });
+  } catch (error) {
+    console.error('Error checking following status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+router.get('/user-follower/:userId', async (req, res)=> {
+  try {
+    const userId = req.params.userId
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId
+      },
+      select: {
+        followers: {
+          where: {
+            followerId: userId
+          },
+          select: {
+            followerId: true,
+          }
+        },
+        _count: {
+          select: {
+            followers: true
+          }
+        }
+      }
+    })
+
+    if(!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const data = {
+      followers: user._count.followers,
+      isFollowedByUser: !!user.followers.length
+    }
+
+    res.status(200).json(data);
+  } catch (error) {
+    console.error('Error fetching followers:', error);
+    res.status(500).json({ error: 'Unable to fetch followers' });
+  }
+})
+
 
 export default router;
