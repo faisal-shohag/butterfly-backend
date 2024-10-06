@@ -432,6 +432,7 @@ router.get("/posts/:postId/:userId/comments", async (req, res) => {
             id: true,
             name: true,
             image: true,
+            username: true,
           },
         },
         images: true,
@@ -701,32 +702,39 @@ router.post('/toggle-follow/:id', async (req, res) => {
 
 // homepage
 //popular posts
-router.get('/popular-posts', async (req, res)=> {
-   try {
-    const popularPosts = await prisma.post.findMany({
-      orderBy: {
-          likes: {
-              _count: "desc",
-          },
-      },
-      take: 5,
-      include: {
-          author: true,
-          _count: {
-              select: {
-                  likes: true,
-                  comments: true,
-              },
-          },
-          images: true,
-      },
-  })
-  res.status(200).json(popularPosts);
+router.get('/popular-posts', async (req, res) => {
+  try {
+   const popularPosts = await prisma.post.findMany({
+     orderBy: [
+       {
+         likes: {
+           _count: "desc"
+         }
+       },
+       {
+         comments: {
+           _count: "desc"
+         }
+       }
+     ],
+     take: 5,
+     include: {
+       author: true,
+       _count: {
+         select: {
+           likes: true,
+           comments: true,
+         },
+       },
+       images: true,
+     },
+   })
+   res.status(200).json(popularPosts);
 
-   } catch (error) {
-    console.error('Error fetching popular posts:', error);
-    res.status(500).json({ error: 'Unable to fetch popular posts' });
-   }
+  } catch (error) {
+   console.error('Error fetching popular posts:', error);
+   res.status(500).json({ error: 'Unable to fetch popular posts' });
+  }
 })
 
 
