@@ -100,6 +100,7 @@ router.get("/allposts/:userId", async (req, res) => {
               image: true,
               username: true,
               email: true,
+              role: true,
               _count: {
                 select: {
                   followers: true,
@@ -135,6 +136,93 @@ router.get("/allposts/:userId", async (req, res) => {
       comments: undefined,
       likes: undefined,
     })});
+
+    res.json({
+      posts: formattedPosts,
+      currentPage: page,
+      totalPages: Math.ceil(totalCount / limit),
+      totalCount,
+    });
+  } catch (error) {
+    console.error("Error fetching posts:", error);
+    res.status(500).json({ error: "An error occurred while fetching posts" });
+  }
+});
+
+router.get("/followed-posts/:userId", async (req, res) => {
+  const userId = req.params.userId;
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const [posts, totalCount] = await Promise.all([
+      prisma.post.findMany({
+        where: {
+          author: {
+            followers: {
+              some: {
+                followerId: userId
+              }
+            }
+          }
+        },
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              username: true,
+              email: true,
+              role: true,
+              _count: {
+                select: {
+                  followers: true,
+                }
+              }
+            }
+          },
+          comments: {
+            select: {
+              id: true,
+            },
+          },
+          likes: {
+            select: {
+              id: true,
+              userId: true,
+            },
+          },
+          images: true,
+        },
+      }),
+      prisma.post.count({
+        where: {
+          author: {
+            followers: {
+              some: {
+                followerId: userId
+              }
+            }
+          }
+        }
+      }),
+    ]);
+
+    const formattedPosts = posts.map((post) => ({
+      ...post,
+      commentCount: post.comments.length,
+      likeCount: post.likes.length,
+      isLiked: post.likes.some((like) => like.userId === userId),
+      comments: undefined,
+      likes: undefined,
+    }));
 
     res.json({
       posts: formattedPosts,
@@ -446,6 +534,7 @@ router.get("/posts/:postId/:userId/comments", async (req, res) => {
             name: true,
             image: true,
             username: true,
+            role: true,
           },
         },
         images: true,
