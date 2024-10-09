@@ -315,7 +315,7 @@ router.get("/post/:id/:userId", async (req, res) => {
       commentCount: post.comments.length,
       // likes: post.likes.map((like) => like.userId),
       likeCount: post.likes.length, // Only return user IDs who liked the post
-      isLiked: post.likes.some((like) => like.userId === userId),
+      isLiked: post.likes.find((like) => like.userId === userId),
       comments: post.comments.map((comment) => ({
         ...comment,
         likesCount: comment.likes.length, // Count the number of likes for each comment
@@ -509,4 +509,58 @@ router.post("/comments/:commentId/replies", async (req, res) => {
     res.status(500).json({ error: "An error occurred while adding the reply" });
   }
 });
+
+
+
+//toggle follow
+router.post('/toggle-follow/:id', async (req, res) => {
+  const { id: targetUserId } = req.params;
+  const currentUserId = req.user.id; // Assume we have user authentication middleware
+
+  try {
+    // Check if the user is trying to follow themselves
+    if (currentUserId === targetUserId) {
+      return res.status(400).json({ error: 'You cannot follow yourself' });
+    }
+
+    // Check if the follow relationship already exists
+    const existingFollow = await prisma.follows.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: currentUserId,
+          followingId: targetUserId,
+        },
+      },
+    });
+
+    let result;
+    if (existingFollow) {
+      // Unfollow: Delete the existing follow relationship
+      await prisma.follows.delete({
+        where: {
+          followerId_followingId: {
+            followerId: currentUserId,
+            followingId: targetUserId,
+          },
+        },
+      });
+      result = { action: 'unfollowed', message: 'User unfollowed successfully' };
+    } else {
+      // Follow: Create a new follow relationship
+      await prisma.follows.create({
+        data: {
+          followerId: currentUserId,
+          followingId: targetUserId,
+        },
+      });
+      result = { action: 'followed', message: 'User followed successfully' };
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error toggling follow status:', error);
+    res.status(500).json({ error: 'Unable to toggle follow status' });
+  }
+});
+
 export default router;
