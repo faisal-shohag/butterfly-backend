@@ -52,6 +52,58 @@ router.get("/users/:id", async (req, res) => {
   }
 });
 
+
+//get most coined users
+router.get("/most-coined-users", async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      include: {
+        _count: {
+          select: {
+            coins: true,
+          },
+        },
+      },
+      orderBy: {
+        coins: {
+          _count: "desc",
+        },
+      },
+      take: 5,
+    });
+    return res.status(200).json(users);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+//hive hunters
+router.get("/hive-hunters", async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      include: {
+        _count: {
+          select: {
+            posts: true,
+          },
+        },
+      },
+      orderBy: {
+        posts: {
+          _count: "desc",
+        },
+      },
+      take: 5,
+    });
+    return res.status(200).json(users);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 //get books
 router.get("/books", async (req, res) => {
   try {
@@ -83,28 +135,75 @@ router.get("/books/:id", async (req, res) => {
   }
 });
 
-router.get("/all_books", async (req, res) => {
+router.get("/all_books/:userId", async (req, res) => {
+  // console.log(req.params.userId)
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const userId = req.params.userId;
 
     const books = await prisma.book.findMany({
-      include: { user: true },
+      include: { 
+        user: true,
+        likes: true,
+      },
       skip,
       take: limit,
       orderBy: { id: 'desc' }
     });
 
+ 
+
+    const booksWithLikeInfo = books.map(book => {
+      // console.log(book);
+      return ({
+      ...book,
+      isLiked: userId ? book.likes.some(like => like.userId === userId) : false,
+      likeCount: book.likes.length,
+      likes: undefined, // Remove the likes array from the response
+    })});
+
     const totalBooks = await prisma.book.count();
     const totalPages = Math.ceil(totalBooks / limit);
 
     return res.status(200).json({
-      books,
+      books: booksWithLikeInfo,
       currentPage: page,
       totalPages,
       totalBooks
     });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/latest-books/:userId", async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const books = await prisma.book.findMany({
+      include: { 
+        user: true,
+        likes: true,
+      },
+      take: 5,
+      orderBy: { createdAt: 'desc' }
+    });
+
+
+    const booksWithLikeInfo = books.map(book => {
+      return ({
+      ...book,
+      isLiked: userId ? book.likes.some(like => like.userId === userId) : false,
+      likeCount: book.likes.length,
+      likes: undefined, // Remove the likes array from the response
+    })});
+
+
+
+    return res.status(200).json({books: booksWithLikeInfo});
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Internal server error" });
@@ -216,6 +315,42 @@ router.get("/comment/:postId", async (req, res) => {
     });
     return res.json({ status: 200, data: comments });
   } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+
+router.get('/my-coins/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  try {
+    const recentCoins = await prisma.coin.findMany({
+      where: {
+        userId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 5,
+    });
+
+    const totalCoins = await prisma.coin.aggregate({
+      where: {
+        userId,
+      },
+      _sum: {
+        value: true,
+      },
+    });
+
+    return res.json({ 
+      status: 200, 
+      data: {
+        recentCoins,
+        totalCoins: totalCoins._sum.value || 0,
+      }
+    });
+  } catch (error) {
+    console.error(error);
     return res.status(400).json({ error: error.message });
   }
 });

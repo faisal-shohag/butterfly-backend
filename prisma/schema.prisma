@@ -8,38 +8,56 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-
+enum Role{
+  ADMIN
+  USER
+}
 model User {
-  id            String    @id @default(uuid())
+  id            String     @id @default(uuid())
   name          String
-  username      String?   @unique
-  emailVerified DateTime?
-  email         String    @unique
+  email         String     @unique
   password      String?
   image         String?
   coverPhoto    String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  role          String?
-  accounts      Account[]
-  sessions      Session[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  role          Role       @default(USER)
+  username      String?    @unique
+  emailVerified DateTime?
   books         Book[]
+  bookLikes     BookLike[]
   comments      Comment[]
   likes         Like[]
   posts         Post[]
   replies       Reply[]
-  followers     Follows[] @relation("following")
-  following     Follows[] @relation("follower")
+  requests      Request[]
+  accounts      Account[]
+  coins         Coin[]
+  following     Follows[]  @relation("following")
+  followers     Follows[]  @relation("followers")
+  sessions      Session[]
 
   @@map("users")
 }
 
+model Coin {
+  id        String   @id @default(uuid())
+  type      String?
+  reason    String?
+  value     Float    @default(0)
+  userId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("coins")
+}
+
 model Follows {
-  follower    User     @relation("follower", fields: [followerId], references: [id])
   followerId  String
-  following   User     @relation("following", fields: [followingId], references: [id])
   followingId String
   createdAt   DateTime @default(now())
+  follower    User     @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("followers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@id([followerId, followingId])
   @@map("follows")
@@ -97,8 +115,27 @@ model Book {
   userId        String
   lookingFor    Json
   author        String
+  createdAt     DateTime          @default(now())
   user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes         BookLike[]
   samplePhotos  BookSamplePhoto[]
+  requests      Request[]
+
+  @@index([userId])
+}
+
+model BookLike {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  bookId    Int
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId])
+  @@index([userId])
+  @@index([bookId])
 }
 
 model BookSamplePhoto {
@@ -107,6 +144,21 @@ model BookSamplePhoto {
   bookId Int
   book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
 
+  @@index([bookId])
+}
+
+model Request {
+  id          Int      @id @default(autoincrement())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  requesterId String
+  bookId      Int
+  message     String?
+  status      String
+  book        Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  requester   User     @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([requesterId])
   @@index([bookId])
 }
 
@@ -120,9 +172,25 @@ model Post {
   comments  Comment[]
   images    Image[]   @relation("PostImages")
   likes     Like[]
-  author    User      @relation(fields: [authorId], references: [id])
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([authorId])
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  userId    String
+  postId    Int?
+  commentId Int?
+  replyId   Int?
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reply     Reply?   @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId, commentId, replyId])
+  @@index([userId])
 }
 
 model Comment {
@@ -132,8 +200,8 @@ model Comment {
   updatedAt DateTime @updatedAt
   authorId  String
   postId    Int
-  author    User     @relation(fields: [authorId], references: [id])
-  post      Post     @relation(fields: [postId], references: [id])
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   images    Image[]  @relation("CommentImages")
   likes     Like[]
   replies   Reply[]
@@ -145,33 +213,15 @@ model Comment {
 model Reply {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
   content   String
   authorId  String
   commentId Int
   likes     Like[]
-  author    User     @relation(fields: [authorId], references: [id])
-  comment   Comment  @relation(fields: [commentId], references: [id])
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@index([authorId])
   @@index([commentId])
-}
-
-model Like {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  userId    String
-  postId    Int?
-  commentId Int?
-  replyId   Int?
-  comment   Comment? @relation(fields: [commentId], references: [id])
-  post      Post?    @relation(fields: [postId], references: [id])
-  reply     Reply?   @relation(fields: [replyId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@unique([userId, postId, commentId, replyId])
-  @@index([userId])
 }
 
 model Image {

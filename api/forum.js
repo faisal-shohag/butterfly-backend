@@ -31,6 +31,53 @@ router.post("/posts", async (req, res) => {
   }
 });
 
+
+// get top 5 posts
+
+router.get('/get-popular-posts', async (req, res) => {
+  try {
+    const popularPosts = await prisma.post.findMany({
+      orderBy: {
+        likes: {
+          _count: 'desc',
+        },
+      },
+      take: 5,
+      include: {
+        author: true,
+        comments: {
+          select: {
+            id: true,
+          },
+        },
+        likes: {
+          select: {
+            id: true,
+            userId: true,
+          },
+        },
+        images: true,
+        // type: true,
+      },
+    });
+
+    const formattedPosts = popularPosts.map((post) => {
+      return ({
+      ...post,
+      commentCount: post.comments.length,
+      likeCount: post.likes.length,
+      isLiked: post.likes.some((like) => like.userId === req.userId),
+      comments: undefined,
+      likes: undefined,
+    })});
+
+    res.json(formattedPosts);
+  } catch (error) {
+    console.error('Error fetching popular posts:', error);
+    res.status(500).json({ error: 'An error occurred while fetching popular posts' });
+  }
+})
+
 router.get("/allposts/:userId", async (req, res) => {
   const userId = req.params.userId;
   try {
@@ -46,7 +93,21 @@ router.get("/allposts/:userId", async (req, res) => {
           createdAt: "desc",
         },
         include: {
-          author: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              username: true,
+              email: true,
+              role: true,
+              _count: {
+                select: {
+                  followers: true,
+                }
+              }
+            }
+          },
           comments: {
             select: {
               id: true,
@@ -75,6 +136,93 @@ router.get("/allposts/:userId", async (req, res) => {
       comments: undefined,
       likes: undefined,
     })});
+
+    res.json({
+      posts: formattedPosts,
+      currentPage: page,
+      totalPages: Math.ceil(totalCount / limit),
+      totalCount,
+    });
+  } catch (error) {
+    console.error("Error fetching posts:", error);
+    res.status(500).json({ error: "An error occurred while fetching posts" });
+  }
+});
+
+router.get("/followed-posts/:userId", async (req, res) => {
+  const userId = req.params.userId;
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const [posts, totalCount] = await Promise.all([
+      prisma.post.findMany({
+        where: {
+          author: {
+            followers: {
+              some: {
+                followerId: userId
+              }
+            }
+          }
+        },
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              username: true,
+              email: true,
+              role: true,
+              _count: {
+                select: {
+                  followers: true,
+                }
+              }
+            }
+          },
+          comments: {
+            select: {
+              id: true,
+            },
+          },
+          likes: {
+            select: {
+              id: true,
+              userId: true,
+            },
+          },
+          images: true,
+        },
+      }),
+      prisma.post.count({
+        where: {
+          author: {
+            followers: {
+              some: {
+                followerId: userId
+              }
+            }
+          }
+        }
+      }),
+    ]);
+
+    const formattedPosts = posts.map((post) => ({
+      ...post,
+      commentCount: post.comments.length,
+      likeCount: post.likes.length,
+      isLiked: post.likes.some((like) => like.userId === userId),
+      comments: undefined,
+      likes: undefined,
+    }));
 
     res.json({
       posts: formattedPosts,
@@ -370,13 +518,12 @@ router.post("/posts/:postId/comments", async (req, res) => {
   }
 });
 
-//get comments
 router.get("/posts/:postId/:userId/comments", async (req, res) => {
   try {
-    const { postId } = req.params;
+    const { postId, userId } = req.params;
     const { page = 1, limit = 10 } = req.query;
 
-    const skip = (page - 1) * limit;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const comments = await prisma.comment.findMany({
       where: { postId: parseInt(postId) },
@@ -384,27 +531,24 @@ router.get("/posts/:postId/:userId/comments", async (req, res) => {
         author: {
           select: {
             id: true,
-            displayName: true,
-            photoURL: true,
+            name: true,
+            image: true,
+            username: true,
+            role: true,
           },
         },
         images: true,
-        likes: true,
-        replies: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                displayName: true,
-                photoURL: true,
-              },
-            },
-            likes: true,
+        likes: {
+          select: {
+            userId: true,
           },
         },
+        _count: {
+          select: { replies: true }
+        }
       },
       orderBy: { createdAt: 'desc' },
-      skip: parseInt(skip),
+      skip: skip,
       take: parseInt(limit),
     });
 
@@ -413,22 +557,22 @@ router.get("/posts/:postId/:userId/comments", async (req, res) => {
     });
 
     const commentsWithLikeInfo = comments.map(comment => ({
-      ...comment,
+      id: comment.id,
+      content: comment.content,
+      createdAt: comment.createdAt,
+      updatedAt: comment.updatedAt,
+      author: comment.author,
+      images: comment.images,
       likeCount: comment.likes.length,
-      isLiked: comment.likes.some(like => like.userId === req.params.userId),
-      commentCount: comment.replies.length, // Add the count of replies
-      replies: comment.replies.map(reply => ({
-        ...reply,
-        likeCount: reply.likes.length,
-        isLiked: reply.likes.some(like => like.userId === req.params.userId),
-      })),
+      isLiked: comment.likes.some(like => like.userId === userId),
+      replyCount: comment._count.replies,
     }));
 
     res.json({
       comments: commentsWithLikeInfo,
       totalComments,
       currentPage: parseInt(page),
-      totalPages: Math.ceil(totalComments / limit),
+      totalPages: Math.ceil(totalComments / parseInt(limit)),
     });
   } catch (error) {
     console.error("Error fetching comments:", error);
@@ -436,8 +580,6 @@ router.get("/posts/:postId/:userId/comments", async (req, res) => {
   }
 });
 
-
-// Add comment like endpoint
 router.post("/comments/:commentId/toggle-like", async (req, res) => {
   try {
     const { commentId } = req.params;
@@ -445,43 +587,41 @@ router.post("/comments/:commentId/toggle-like", async (req, res) => {
 
     const existingLike = await prisma.like.findFirst({
       where: {
-        commentId: parseInt(commentId),
         userId: userId,
+        commentId: parseInt(commentId),
+        postId: null,
+        replyId: null,
       },
     });
 
     if (existingLike) {
+      // Unlike
       await prisma.like.delete({
         where: { id: existingLike.id },
       });
     } else {
+      // Like
       await prisma.like.create({
         data: {
-          comment: { connect: { id: parseInt(commentId) } },
           user: { connect: { id: userId } },
+          comment: { connect: { id: parseInt(commentId) } },
         },
       });
     }
 
+    // Get updated like count
     const updatedComment = await prisma.comment.findUnique({
       where: { id: parseInt(commentId) },
-      include: {
-        likes: true,
-      },
-    });
-
-    const likeCount = await prisma.like.count({
-      where: { commentId: parseInt(commentId) },
+      include: { likes: { select: { id: true } } },
     });
 
     res.json({
-      likesCount: updatedComment.likes.length,
       liked: !existingLike,
+      likesCount: updatedComment.likes.length,
     });
-    // console.log(updatedComment)
   } catch (error) {
     console.error("Error toggling comment like:", error);
-    res.status(500).json({ error: "An error occurred while toggling the comment like" });
+    res.status(500).json({ error: "An error occurred while toggling comment like" });
   }
 });
 
@@ -511,11 +651,215 @@ router.post("/comments/:commentId/replies", async (req, res) => {
 });
 
 
+router.delete("/comments/:commentId/:userId", async (req, res) => {
+  const { commentId, userId } = req.params;
 
-//toggle follow
+  try {
+    // Start a transaction
+    await prisma.$transaction(async (prisma) => {
+      // Fetch the comment and its associated images, likes, and replies
+      const comment = await prisma.comment.findUnique({
+        where: { id: parseInt(commentId) },
+        include: {
+          images: true,
+          likes: true,
+          replies: {
+            include: {
+              likes: true,
+            },
+          },
+        },
+      });
+
+      // If the comment doesn't exist, throw an error
+      if (!comment) {
+        throw new Error("Comment not found");
+      }
+
+      // Check if the comment belongs to the user
+      if (comment.authorId !== userId) {
+        throw new Error("You are not authorized to delete this comment");
+      }
+
+      // Collect all image file IDs for deletion
+      const allImages = comment.images.map(image => image.fileId);
+
+      // Delete associated images from ImageKit (if applicable)
+      const deleteImagePromises = allImages.map((fileId) => {
+        return new Promise((resolve) => {
+          if (!fileId) {
+            resolve({ success: false });
+            return;
+          }
+
+          imageKit.deleteFile(fileId, (error, result) => {
+            if (error) {
+              console.error(`Failed to delete image with fileId ${fileId}:`, error);
+              resolve({ success: false });
+            } else {
+              resolve({ success: true });
+            }
+          });
+        });
+      });
+
+      // Await deletion of images
+      const deleteResults = await Promise.all(deleteImagePromises);
+
+      // Log the image deletion results
+      deleteResults.forEach((result, idx) => {
+        if (result.success) {
+          console.log(`Successfully deleted image with fileId: ${allImages[idx]}`);
+        } else {
+          console.error(`Failed to delete image with fileId: ${allImages[idx]}`);
+        }
+      });
+
+      // Delete all likes associated with the comment and its replies
+      await prisma.like.deleteMany({
+        where: {
+          OR: [
+            { commentId: parseInt(commentId) },
+            { replyId: { in: comment.replies.map(reply => reply.id) } },
+          ],
+        },
+      });
+
+      // Delete replies associated with the comment
+      await prisma.reply.deleteMany({
+        where: { commentId: parseInt(commentId) },
+      });
+
+      // Delete the comment itself
+      await prisma.comment.delete({
+        where: { id: parseInt(commentId) },
+      });
+    });
+
+    // Send a success response
+    res.json({ message: "Comment, associated replies, likes, and images deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting comment, replies, likes, and images:", error);
+    res.status(500).json({
+      error: error.message || "An error occurred while deleting the comment",
+    });
+  }
+});
+
+
+
+
+
+
+// homepage
+//popular posts
+router.get('/popular-posts', async (req, res) => {
+  try {
+   const popularPosts = await prisma.post.findMany({
+     orderBy: [
+       {
+         likes: {
+           _count: "desc"
+         }
+       },
+       {
+         comments: {
+           _count: "desc"
+         }
+       }
+     ],
+     take: 5,
+     include: {
+       author: true,
+       _count: {
+         select: {
+           likes: true,
+           comments: true,
+         },
+       },
+       images: true,
+     },
+   })
+   res.status(200).json(popularPosts);
+
+  } catch (error) {
+   console.error('Error fetching popular posts:', error);
+   res.status(500).json({ error: 'Unable to fetch popular posts' });
+  }
+})
+
+
+BigInt.prototype.toJSON = function() {       
+  return this.toString()
+}
+
+//trensding topics
+router.get('/trending-topics', async (req, res)=> {
+  try {
+    const trendingTopics = await prisma.$queryRaw`
+    SELECT LOWER(unnest(regexp_matches(content, '#[[:alnum:]_]+', 'g'))) AS hashtag, COUNT(*) AS count
+    FROM "Post"
+    GROUP BY hashtag
+    ORDER BY count DESC, hashtag ASC
+    LIMIT 3
+`;
+  res.status(200).json(trendingTopics);
+
+  } catch (error) {
+    console.error('Error fetching trending topics:', error);
+    res.status(500).json({ error: 'Unable to fetch trending topics' });
+  }
+})
+
+
+
+
+router.get('/suggested-users', async (req, res) => {
+  try {
+    const { userId, limit = 10 } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    const suggestedUsers = await prisma.user.findMany({
+      where: {
+        AND: [
+          { id: { not: userId } },
+          {
+            NOT: {
+              followers: {
+                some: {
+                  followerId: userId,
+                },
+              },
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        image: true,
+      },
+      take: parseInt(limit),
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    res.json(suggestedUsers);
+  } catch (error) {
+    console.error('Error fetching suggested users:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.post('/toggle-follow/:id', async (req, res) => {
   const { id: targetUserId } = req.params;
-  const currentUserId = req.user.id; // Assume we have user authentication middleware
+  const currentUserId = req.body.user.id;
+  // console.log(currentUserId, targetUserId);
 
   try {
     // Check if the user is trying to follow themselves
@@ -556,11 +900,79 @@ router.post('/toggle-follow/:id', async (req, res) => {
       result = { action: 'followed', message: 'User followed successfully' };
     }
 
-    res.json(result);
+    res.status(200).json(result);
   } catch (error) {
     console.error('Error toggling follow status:', error);
     res.status(500).json({ error: 'Unable to toggle follow status' });
   }
 });
+
+router.get('/following-status/:currentUserId/:targetUserId', async (req, res) => {
+  try {
+    const { currentUserId, targetUserId } = req.params;
+
+    if (!currentUserId || !targetUserId) {
+      return res.status(400).json({ error: 'Both currentUserId and targetUserId are required' });
+    }
+
+    const followRelationship = await prisma.follows.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: currentUserId,
+          followingId: targetUserId,
+        },
+      },
+    });
+
+    const isFollowing = !!followRelationship;
+
+    res.json({ isFollowing });
+  } catch (error) {
+    console.error('Error checking following status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+router.get('/user-follower/:userId', async (req, res)=> {
+  try {
+    const userId = req.params.userId
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId
+      },
+      select: {
+        followers: {
+          where: {
+            followerId: userId
+          },
+          select: {
+            followerId: true,
+          }
+        },
+        _count: {
+          select: {
+            followers: true
+          }
+        }
+      }
+    })
+
+    if(!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const data = {
+      followers: user._count.followers,
+      isFollowedByUser: !!user.followers.length
+    }
+
+    res.status(200).json(data);
+  } catch (error) {
+    console.error('Error fetching followers:', error);
+    res.status(500).json({ error: 'Unable to fetch followers' });
+  }
+})
+
 
 export default router;
