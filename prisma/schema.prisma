@@ -9,52 +9,52 @@ datasource db {
 }
 
 model User {
-  id         String    @id @default(uuid())
-  name       String
-  username    String? @unique
+  id            String       @id @default(uuid())
+  name          String
+  email         String       @unique
+  password      String?
+  image         String?
+  coverPhoto    String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  role          String?
+  username      String?      @unique
   emailVerified DateTime?
-  email      String    @unique
-  password   String?
-  image  String?
-  coverPhoto String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  role String?
-   accounts      Account[]
+  books         Book[]
+  bookLikes     BookLike[]
+  reviews       BookReview[]
+  comments      Comment[]
+  likes         Like[]
+  posts         Post[]
+  replies       Reply[]
+  requests      Request[]
+  accounts      Account[]
+  coins         Coin[]
+  following     Follows[]    @relation("following")
+  followers     Follows[]    @relation("followers")
   sessions      Session[]
-  books      Book[]
-  comments   Comment[]
-  likes      Like[]
-  bookLikes  BookLike[]
-  posts      Post[]
-  replies    Reply[]
-  followers     Follows[] @relation("followers")
-  following     Follows[] @relation("following")
-  coins Coin[]
-  requests Request[]
-  reviews BookReview[]
 
   @@map("users")
 }
 
 model Coin {
-  id         String    @id @default(uuid())
-  type String?
-  reason String?
-  value Float @default(0)
-  userId String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  type      String?
+  reason    String?
+  value     Float    @default(0)
+  userId    String
   createdAt DateTime @default(now())
-  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("coins")
 }
 
 model Follows {
-  follower    User     @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
   followerId  String
-  following   User     @relation("followers", fields: [followingId], references: [id], onDelete: Cascade)
   followingId String
   createdAt   DateTime @default(now())
+  follower    User     @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("followers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@id([followerId, followingId])
   @@map("follows")
@@ -75,11 +75,10 @@ model Account {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@id([provider, providerAccountId])
   @@map("accounts")
 }
-
 
 model Session {
   sessionToken String   @unique
@@ -113,12 +112,13 @@ model Book {
   userId        String
   lookingFor    Json
   author        String
+  createdAt     DateTime          @default(now())
   user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  samplePhotos  BookSamplePhoto[]
   likes         BookLike[]
-  requests      Request[]          
-  createdAt     DateTime @default(now())
-  reports  Report[]
+  samplePhotos  BookSamplePhoto[]
+  reports       Report[]
+  requests      Request[]
+
   @@index([userId])
 }
 
@@ -145,46 +145,45 @@ model BookSamplePhoto {
   @@index([bookId])
 }
 
-
-model StoreBook{
-  id     Int    @id @default(autoincrement())
-  title String
-  description String
-  author String
-  publications String?
+model StoreBook {
+  id            Int          @id @default(autoincrement())
+  title         String
+  description   String
+  author        String
+  publications  String?
   publishedDate DateTime?
-  price Float @default(0)
-  coin  Int @default(0)
-  discount Float @default(0)
-  category String
-  language String
-  cover String?
-  reviews BookReview[]
+  price         Float        @default(0)
+  coin          Int          @default(0)
+  discount      Float        @default(0)
+  category      String
+  language      String
+  cover         String?
+  reviews       BookReview[]
+
   @@map("storebook")
 }
 
 model BookReview {
-  id     Int    @id @default(autoincrement())
-  book  StoreBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  bookId Int
-  createdAt DateTime @default(now())
-  rating Float
-  review String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String
+  id        Int       @id @default(autoincrement())
+  bookId    Int
+  createdAt DateTime  @default(now())
+  rating    Float
+  review    String
+  userId    String
+  book      StoreBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-
 model Request {
-  id         Int      @id @default(autoincrement())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   requesterId String
-  bookId     Int
-  message    String?  // Optional request message
-  status     String    // Request status (e.g., pending, approved, rejected)
-  book       Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  requester  User     @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  bookId      Int
+  message     String?
+  status      String
+  book        Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  requester   User     @relation(fields: [requesterId], references: [id], onDelete: Cascade)
 
   @@index([requesterId])
   @@index([bookId])
@@ -201,7 +200,7 @@ model Post {
   images    Image[]   @relation("PostImages")
   likes     Like[]
   author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  reports  Report[]
+  reports   Report[]
 
   @@index([authorId])
 }
@@ -209,12 +208,12 @@ model Post {
 model Like {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
-  userId    String   
+  userId    String
   postId    Int?
   commentId Int?
   replyId   Int?
-  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
   comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
   reply     Reply?   @relation(fields: [replyId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -242,7 +241,6 @@ model Comment {
 model Reply {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
-  // updatedAt DateTime @updatedAt @default(now())
   content   String
   authorId  String
   commentId Int
@@ -257,7 +255,7 @@ model Reply {
 model Image {
   id        Int      @id @default(autoincrement())
   url       String
-  fileId    String? 
+  fileId    String?
   postId    Int?
   commentId Int?
   comment   Comment? @relation("CommentImages", fields: [commentId], references: [id], onDelete: Cascade)
@@ -267,22 +265,21 @@ model Image {
   @@index([commentId])
 }
 
-
 model Report {
-  id        Int      @id @default(autoincrement())
-  text  String
-  createdAt DateTime @default(now())
-  post  Post? @relation(fields: [postId], references: [id], onDelete: Cascade)
-  postId Int?
-  book Book? @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  bookId Int?
-  replies ReportReplies[]
+  id        Int             @id @default(autoincrement())
+  text      String
+  createdAt DateTime        @default(now())
+  postId    Int?
+  bookId    Int?
+  book      Book?           @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  post      Post?           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  replies   ReportReplies[]
 }
 
 model ReportReplies {
   id        Int      @id @default(autoincrement())
-  text  String
+  text      String
   createdAt DateTime @default(now())
-  report  Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  reportId Int
+  reportId  Int
+  report    Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
 }

@@ -258,30 +258,46 @@ router.get("/posts", async (req, res) => {
 
 //get single post
 router.get("/posts/:authorId", async (req, res) => {
-  const authorId = parseInt(req.params.authorId);
+  const authorId = req.params.authorId;
+  const page = parseInt(req.query.page) || 1
+  const limit = parseInt(req.query.limit) || 10
+  const skip = (page -1) * limit;
 
   try {
-    const post = await prisma.post.findMany({
-      where: {
-        authorId,
-      },
-      include: {
-        author: true,
-        comments: {
-          select: {
-            id: true,
+    const [post, totalCount] = await  Promise.all([
+      prisma.post.findMany({
+        skip,
+        take: limit,
+        orderBy : {
+          createdAt : 'desc'
+        },
+        where: {
+          authorId,
+        },
+        include: {
+          author: true,
+          comments: {
+            select: {
+              id: true,
+            },
+          },
+          likes: {
+            select: {
+              id: true,
+              userId: true,
+            },
           },
         },
-        likes: {
-          select: {
-            id: true,
-            userId: true,
-          },
-        },
-      },
-    });
-
-    return res.json({ status: 200, data: post });
+      }),
+      prisma.post.count()
+    ])
+    return res.json({
+      posts: post,
+      currentPage: page,
+      totalPages: Math.ceil(totalCount / limit),
+      totalCount,
+    })
+    // return res.json({ status: 200, data: post });
   } catch (error) {
     return res.status(400).json({ error: error.message });
   }
