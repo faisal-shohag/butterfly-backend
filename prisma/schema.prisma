@@ -9,19 +9,20 @@ datasource db {
 }
 
 model User {
-  id            String     @id @default(uuid())
+  id            String       @id @default(uuid())
   name          String
-  email         String     @unique
+  email         String       @unique
   password      String?
   image         String?
   coverPhoto    String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
   role          String?
-  username      String?    @unique
+  username      String?      @unique
   emailVerified DateTime?
   books         Book[]
   bookLikes     BookLike[]
+  reviews       BookReview[]
   comments      Comment[]
   likes         Like[]
   posts         Post[]
@@ -29,8 +30,8 @@ model User {
   requests      Request[]
   accounts      Account[]
   coins         Coin[]
-  following     Follows[]  @relation("following")
-  followers     Follows[]  @relation("followers")
+  following     Follows[]    @relation("following")
+  followers     Follows[]    @relation("followers")
   sessions      Session[]
 
   @@map("users")
@@ -115,6 +116,7 @@ model Book {
   user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   likes         BookLike[]
   samplePhotos  BookSamplePhoto[]
+  reports       Report[]
   requests      Request[]
 
   @@index([userId])
@@ -143,6 +145,35 @@ model BookSamplePhoto {
   @@index([bookId])
 }
 
+model StoreBook {
+  id            Int          @id @default(autoincrement())
+  title         String
+  description   String
+  author        String
+  publications  String?
+  publishedDate DateTime?
+  price         Float        @default(0)
+  coin          Int          @default(0)
+  discount      Float        @default(0)
+  category      String
+  language      String
+  cover         String?
+  reviews       BookReview[]
+
+  @@map("storebook")
+}
+
+model BookReview {
+  id        Int       @id @default(autoincrement())
+  bookId    Int
+  createdAt DateTime  @default(now())
+  rating    Float
+  review    String
+  userId    String
+  book      StoreBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model Request {
   id          Int      @id @default(autoincrement())
   createdAt   DateTime @default(now())
@@ -169,6 +200,7 @@ model Post {
   images    Image[]   @relation("PostImages")
   likes     Like[]
   author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reports   Report[]
 
   @@index([authorId])
 }
@@ -231,4 +263,23 @@ model Image {
 
   @@index([postId])
   @@index([commentId])
+}
+
+model Report {
+  id        Int             @id @default(autoincrement())
+  text      String
+  createdAt DateTime        @default(now())
+  postId    Int?
+  bookId    Int?
+  book      Book?           @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  post      Post?           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  replies   ReportReplies[]
+}
+
+model ReportReplies {
+  id        Int      @id @default(autoincrement())
+  text      String
+  createdAt DateTime @default(now())
+  reportId  Int
+  report    Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
 }
