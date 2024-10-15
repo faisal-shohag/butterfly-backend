@@ -33,6 +33,7 @@ model User {
   coins Coin[]
   requests Request[]
   reviews BookReview[]
+  reports Report[]
 
   @@map("users")
 }
@@ -159,6 +160,7 @@ model StoreBook{
   category String
   language String
   cover String?
+  pdfURL String?
   reviews BookReview[]
   @@map("storebook")
 }
@@ -276,6 +278,8 @@ model Report {
   postId Int?
   book Book? @relation(fields: [bookId], references: [id], onDelete: Cascade)
   bookId Int?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
   replies ReportReplies[]
 }
 

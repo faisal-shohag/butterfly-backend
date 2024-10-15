@@ -63,14 +63,34 @@ router.get('/reports', async(req, res) => {
 
 
 router.post('/reports', async(req, res) => {
-    try {
-        const report = await prisma.report.create({
-            data: req.body
-        })
-        return res.status(200).json({report})
-    } catch (error) {
-        return res.status(500).json({error: error.message})
-    }
+    const {itemId, itemType, text, userId} = req.body
+    let report;
+        try {
+            if(itemType === 'post'){
+                 report = await prisma.report.create({
+                    data: {
+                        text,
+                        postId: parseInt(itemId),
+                        userId
+                    }
+                })
+            } else {
+                report = await prisma.report.create({
+                    data: {
+                        text,
+                        bookId: parseInt(itemId),
+                        userId
+                    }
+                })
+            }
+           
+            return res.status(200).json({report})
+        } catch (error) {
+            console.log(error)
+            return res.status(500).json({error: error.message})
+        }
+    
+    
 })
 
 router.post('/report_reply', async(req, res) => {
@@ -80,6 +100,7 @@ router.post('/report_reply', async(req, res) => {
         })
         return res.status(200).json({reportReply})
     } catch (error) {
+        console.log(error)
         return res.status(500).json({error: error.message})
     }
 })
