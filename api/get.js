@@ -136,39 +136,58 @@ router.get("/books/:id", async (req, res) => {
 });
 
 router.get("/all_books/:userId", async (req, res) => {
-  // console.log(req.params.userId)
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     const userId = req.params.userId;
+    const genre = req.query.category;
+    const sortBy = req.query.sortBy || 'latest';
+    
+
+    let orderBy = {};
+    switch (sortBy) {
+      case 'oldest':
+        orderBy = { createdAt: 'asc' };
+        break;
+      case 'alphabetical':
+        orderBy = { title: 'asc' };
+        break;
+      case 'latest':
+      default:
+        orderBy = { createdAt: 'desc' };
+    }
+
+    let where = genre ? { genre } : {};
+    where = genre === "all" ? {} : {genre}
 
     const books = await prisma.book.findMany({
+      where,
       include: { 
         user: true,
         likes: true,
+        requests: true,
       },
       skip,
       take: limit,
-      orderBy: { id: 'desc' }
+      orderBy
     });
 
- 
-
-    const booksWithLikeInfo = books.map(book => {
-      // console.log(book);
-      return ({
+    const booksWithLikeAndRequestInfo = books.map(book => ({
       ...book,
       isLiked: userId ? book.likes.some(like => like.userId === userId) : false,
       likeCount: book.likes.length,
-      likes: undefined, // Remove the likes array from the response
-    })});
+      isRequested: userId ? book.requests.some(request => request.requesterId === userId) : false,
+      requestCount: book.requests.length,
+      likes: undefined,
+      requests: undefined,
+    }));
 
-    const totalBooks = await prisma.book.count();
+    const totalBooks = await prisma.book.count({ where });
     const totalPages = Math.ceil(totalBooks / limit);
 
     return res.status(200).json({
-      books: booksWithLikeInfo,
+      books: booksWithLikeAndRequestInfo,
       currentPage: page,
       totalPages,
       totalBooks
@@ -178,6 +197,7 @@ router.get("/all_books/:userId", async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 router.get("/latest-books/:userId", async (req, res) => {
   try {
