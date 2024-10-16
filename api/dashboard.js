@@ -33,22 +33,43 @@ router.put('/user_role/:id', async(req, res) => {
 
 
 
-router.get('/reports', async(req, res) => {
+router.get('/reports', async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+
+      
+        const skip = (page - 1) * limit;
+
+
         const reports = await prisma.report.findMany({
+            skip: skip,
+            take: limit,
             include: {
                 post: true,
                 book: true,
                 user: true,
                 replies: true, 
-            }
+            },
         });
-        return res.status(200).json({reports})
+
+ 
+        const totalReports = await prisma.report.count();
+        const totalPages = Math.ceil(totalReports / limit);
+
+       
+        return res.status(200).json({
+            reports,
+            currentPage: page,
+            totalPages,
+            totalReports,
+        });
     } catch (error) {
-        console.log(error)
-        return res.status(500).json({error: error.message})
+        console.log(error);
+        return res.status(500).json({ error: error.message });
     }
-})
+});
+
 
 
 router.post('/reports', async(req, res) => {
