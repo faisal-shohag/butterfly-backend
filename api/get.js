@@ -4,13 +4,36 @@ const router = Router();
 
 router.get("/users", async (req, res) => {
   try {
-    const users = await prisma.user.findMany();
-    return res.status(200).json(users);
+
+    const page = parseInt(req.query.page) || 1; 
+    const limit = parseInt(req.query.limit) || 10; 
+
+  
+    const skip = (page - 1) * limit;
+
+ 
+    const users = await prisma.user.findMany({
+      skip: skip,
+      take: limit,
+    });
+
+    
+    const totalUsers = await prisma.user.count();
+    const totalPages = Math.ceil(totalUsers / limit);
+
+
+    return res.status(200).json({
+      users,
+      currentPage: page,
+      totalPages,
+      totalUsers,
+    });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 router.get('/check-username/:username', async (req, res) => {
   const { username } = req.params;
