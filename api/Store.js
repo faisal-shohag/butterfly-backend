@@ -15,15 +15,36 @@ router.post('/add_store_books', async(req, res) => {
     
 })
 
-router.get('/store_books', async(req, res) => {
+router.get('/store_books', async (req, res) => {
     try {
-        const storeBooks = await prisma.storeBook.findMany();
-        return res.status(200).json({storeBooks})
+       
+        const page = parseInt(req.query.page) || 1; 
+        const limit = parseInt(req.query.limit) || 10; 
+        
+        const skip = (page - 1) * limit;
+
+        
+        const storeBooks = await prisma.storeBook.findMany({
+            skip: skip,
+            take: limit,
+        });
+
+        
+        const totalBooks = await prisma.storeBook.count();
+        const totalPages = Math.ceil(totalBooks / limit);
+
+        return res.status(200).json({
+            storeBooks,
+            currentPage: page,
+            totalPages,
+            totalBooks,
+        });
     } catch (error) {
-        console.log(error)
-        return res.status(500).json({error: error.message})
+        console.log(error);
+        return res.status(500).json({ error: error.message });
     }
-})
+});
+
 
 router.get('/store_books/:id', async(req, res) => {
     const id = req.params.id;
