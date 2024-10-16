@@ -82,10 +82,16 @@ router.post('/reports', async(req, res) => {
     
 })
 
-router.post('/report_reply', async(req, res) => {
+router.post('/reportReply/:id', async(req, res) => {
+    const {text, userId} = req.body;
+    const {id} = req.params;
     try {
-        const reportReply = await prisma.reportReply.create({
-            data: req.body
+        const reportReply = await prisma.reportReplies.create({
+            data: {
+                text,
+                reportId: parseInt(id),
+                userId
+            }
         })
         return res.status(200).json({reportReply})
     } catch (error) {

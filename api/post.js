@@ -57,6 +57,51 @@ router.post("/add_book/:id", async (req, res) => {
   }
 });
 
+router.post('/toggle-book-request', async (req, res) => {
+  const { userId, bookId, message } = req.body;
+
+  try {
+    const existingRequest = await prisma.request.findFirst({
+      where: {
+        requesterId: userId,
+        bookId: bookId,
+      },
+    });
+
+    if (existingRequest) {
+      // Cancel request
+      await prisma.request.delete({
+        where: { id: existingRequest.id },
+      });
+
+      const requestCount = await prisma.request.count({
+        where: { bookId: bookId },
+      });
+
+      res.json({ requested: false, requestCount });
+    } else {
+      // Create new request
+      await prisma.request.create({
+        data: {
+          requesterId: userId,
+          bookId: bookId,
+          message: message,
+          status: 'pending',
+        },
+      });
+
+      const requestCount = await prisma.request.count({
+        where: { bookId: bookId },
+      });
+
+      res.json({ requested: true, requestCount });
+    }
+  } catch (error) {
+    console.error('Error toggling book request:', error);
+    res.status(500).json({ error: 'An error occurred while processing your request' });
+  }
+});
+
 router.post("/toggle-book-like", async (req, res) => {
   const { userId, bookId } = req.body;
 
@@ -95,6 +140,7 @@ router.post("/toggle-book-like", async (req, res) => {
       .json({ error: "An error occurred while toggling the like" });
   }
 });
+
 
 router.post("/add-coin", async(req, res) => {
 
