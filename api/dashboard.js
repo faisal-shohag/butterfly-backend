@@ -30,33 +30,22 @@ router.put('/user_role/:id', async(req, res) => {
     }
 })
 
-router.post('/add_store_books', async(req, res) => {
-    try {
-        const newStoreBook = await prisma.storeBook.create({
-            data: req.body
-        })
-        return res.status(200).json({newStoreBook})
-    } catch (error) {
-        return res.status(500).json({error: error.message})
-    }
-    
-})
 
-router.get('/store_books', async(req, res) => {
-    try {
-        const storeBooks = await prisma.storeBook.findMany();
-        return res.status(200).json({storeBooks})
-    } catch (error) {
-        return res.status(500).json({error: error.message})
-    }
-})
 
 
 router.get('/reports', async(req, res) => {
     try {
-        const reports = await prisma.report.findMany();
+        const reports = await prisma.report.findMany({
+            include: {
+                post: true,
+                book: true,
+                user: true,
+                replies: true, 
+            }
+        });
         return res.status(200).json({reports})
     } catch (error) {
+        console.log(error)
         return res.status(500).json({error: error.message})
     }
 })

@@ -11,6 +11,7 @@ import genai from './api/genai.js';
 import forum from './api/forum.js';
 import deleted from './api/delete.js'
 import dashboard from './api/dashboard.js';
+import store from  './api/Store.js'
 
 
 app.use(cors())
@@ -31,6 +32,7 @@ app.use(genai)
 app.use(forum)
 app.use(deleted)
 app.use(dashboard)
+app.use(store)
 
 app.listen(port, () => {
     console.log(`App listening on port ${port}`)
