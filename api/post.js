@@ -155,4 +155,61 @@ router.post("/add-coin", async(req, res) => {
   }
 })
 
+router.post('/deduct-coins/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const { amount, reason } = req.body;
+
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: "Invalid amount. Please provide a positive number." });
+  }
+
+  try {
+    // Start a transaction
+    const result = await prisma.$transaction(async (prisma) => {
+      // Get the current coin balance
+      const currentBalance = await prisma.coin.aggregate({
+        where: { userId },
+        _sum: { value: true }
+      });
+
+      const totalCoins = currentBalance._sum.value || 0;
+
+      // Check if the user has enough coins
+      if (totalCoins < amount) {
+        throw new Error("Insufficient coins");
+      }
+
+      // Create a new Coin record for the deduction
+      const deduction = await prisma.coin.create({
+        data: {
+          type: 'deduction',
+          reason: reason || 'Coin deduction',
+          value: -amount, // Store as a negative value
+          userId: userId
+        }
+      });
+
+      // Calculate new balance
+      const newBalance = totalCoins - amount;
+
+      return { deduction, newBalance };
+    });
+
+    res.status(200).json({
+      message: "Coins deducted successfully",
+      deductedAmount: amount,
+      newBalance: result.newBalance,
+      deductionRecord: result.deduction
+    });
+
+  } catch (error) {
+    console.error("Error deducting coins:", error);
+    if (error.message === "Insufficient coins") {
+      return res.status(400).json({ error: "Insufficient coins for this transaction" });
+    }
+    res.status(500).json({ error: "An error occurred while deducting coins" });
+  }
+});
+
+
 export default router;
