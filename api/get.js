@@ -350,7 +350,7 @@ router.get("/comment/:postId", async (req, res) => {
 router.get('/my-coins/:userId', async (req, res) => {
   const userId = req.params.userId;
   try {
-    const recentCoins = await prisma.coin.findMany({
+    const recentTransactions = await prisma.coin.findMany({
       where: {
         userId,
       },
@@ -359,6 +359,10 @@ router.get('/my-coins/:userId', async (req, res) => {
       },
       take: 5,
     });
+
+    // Separate additions and deductions
+    const recentAdditions = recentTransactions.filter(coin => coin.type !== 'deduction');
+    const recentDeductions = recentTransactions.filter(coin => coin.type === 'deduction');
 
     const totalCoins = await prisma.coin.aggregate({
       where: {
@@ -369,16 +373,39 @@ router.get('/my-coins/:userId', async (req, res) => {
       },
     });
 
+    // Calculate total additions and deductions
+    const totalAdditions = await prisma.coin.aggregate({
+      where: {
+        userId,
+        type: { not: 'deduction' },
+      },
+      _sum: {
+        value: true,
+      },
+    });
+
+    const totalDeductions = await prisma.coin.aggregate({
+      where: {
+        userId,
+        type: 'deduction',
+      },
+      _sum: {
+        value: true,
+      },
+    });
+
     return res.json({ 
       status: 200, 
       data: {
-        recentCoins,
+        recentTransactions,
         totalCoins: totalCoins._sum.value || 0,
+        totalAdditions: totalAdditions._sum.value || 0,
+        totalDeductions: Math.abs(totalDeductions._sum.value) || 0, // Convert to positive number for easier reading
       }
     });
   } catch (error) {
     console.error(error);
-    return res.status(400).json({ error: error.message });
+    return res.status(500).json({ error: "An error occurred while fetching coin data" });
   }
 });
 
