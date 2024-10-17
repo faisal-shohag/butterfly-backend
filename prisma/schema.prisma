@@ -36,7 +36,7 @@ model User {
   reports Report[]
   reportReplies ReportReplies[]
   notifications Notifications[]
-
+  purchasedBooks UserPurchasedBook[]
   @@map("users")
 }
 
@@ -164,7 +164,23 @@ model StoreBook{
   cover String?
   pdfURL String?
   reviews BookReview[]
+   purchasedBy UserPurchasedBook[]
+ 
   @@map("storebook")
+}
+
+model UserPurchasedBook {
+  id        String   @id @default(uuid())
+  userId    String
+  bookId    Int
+  purchaseDate DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book      StoreBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId])
+  @@index([userId])
+  @@index([bookId])
+  @@map("user_purchased_books")
 }
 
 model BookReview {
@@ -303,3 +319,4 @@ model ReportReplies {
   userId String
   reportId Int
 }
+

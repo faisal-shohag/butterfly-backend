@@ -382,4 +382,212 @@ router.get('/my-coins/:userId', async (req, res) => {
   }
 });
 
+
+
+
+router.get('/my-requests/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  try {
+    const requests = await prisma.request.findMany({
+      where: {
+        requesterId: userId,
+      },
+      include: {
+        book: true,
+        requester: true,
+      },
+    });
+
+    return res.json({
+      status: 200,
+      data: requests,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+
+router.get('/purchasedBooks/:id', async (req, res) => {
+  const userId = req.params.id;
+  const page = parseInt(req.query.page) || 1; 
+  const limit = parseInt(req.query.limit) || 10; 
+  const offset = (page - 1) * limit; 
+
+  try {
+    
+    const totalBooks = await prisma.purchase.count({
+      where: {
+        userId: userId,
+      },
+    });
+
+    
+    const purchasedBooks = await prisma.purchase.findMany({
+      where: {
+        userId: userId,
+      },
+      include: {
+        book: true,
+      },
+      skip: offset, 
+      take: limit,  
+    });
+
+    return res.json({
+      status: 200,
+      data: purchasedBooks,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalBooks / limit),
+        totalRecords: totalBooks,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+
+router.get('/my-posts/:userId', async(req, res) => {
+  const userId = req.params.userId;
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const [posts, totalCount] = await Promise.all([
+      prisma.post.findMany({
+        where: {
+          authorId: userId,
+        },
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              username: true,
+              email: true,
+              role: true,
+              _count: {
+                select: {
+                  followers: true,
+                }
+              }
+            }
+          },
+          comments: {
+            select: {
+              id: true,
+            },
+          },
+          likes: {
+            select: {
+              id: true,
+              userId: true,
+            },
+          },
+          images: true,
+        },
+      }),
+      prisma.post.count({
+        where: {
+          authorId: userId,
+        },
+      }),
+    ]);
+
+    const formattedPosts = posts.map((post) => ({
+      ...post,
+      commentCount: post.comments.length,
+      likeCount: post.likes.length,
+      isLiked: post.likes.some((like) => like.userId === userId),
+      comments: undefined,
+      likes: undefined,
+    }));
+
+    res.json({
+      posts: formattedPosts,
+      currentPage: page,
+      totalPages: Math.ceil(totalCount / limit),
+      totalCount,
+    });
+  } catch (error) {
+    console.error("Error fetching user posts:", error);
+    res.status(500).json({ error: "An error occurred while fetching user posts" });
+  }
+});
+
+router.get('/my-books/:userId', async(req, res) => {
+  const userId = req.params.userId;
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const genre = req.query.category;
+    const sortBy = req.query.sortBy || 'latest';
+
+    let orderBy = {};
+    switch (sortBy) {
+      case 'oldest':
+        orderBy = { createdAt: 'asc' };
+        break;
+      case 'alphabetical':
+        orderBy = { title: 'asc' };
+        break;
+      case 'latest':
+      default:
+        orderBy = { createdAt: 'desc' };
+    }
+
+    let where = { userId };
+    if (genre && genre !== "all") {
+      where.genre = genre;
+    }
+
+    const books = await prisma.book.findMany({
+      where,
+      include: { 
+        user: true,
+        likes: true,
+        requests: true,
+      },
+      skip,
+      take: limit,
+      orderBy
+    });
+
+    const booksWithLikeAndRequestInfo = books.map(book => ({
+      ...book,
+      isLiked: book.likes.some(like => like.userId === userId),
+      likeCount: book.likes.length,
+      isRequested: book.requests.some(request => request.requesterId === userId),
+      requestCount: book.requests.length,
+      likes: undefined,
+      requests: undefined,
+    }));
+
+    const totalBooks = await prisma.book.count({ where });
+    const totalPages = Math.ceil(totalBooks / limit);
+
+    return res.status(200).json({
+      books: booksWithLikeAndRequestInfo,
+      currentPage: page,
+      totalPages,
+      totalBooks
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default router;
