@@ -94,5 +94,68 @@ router.delete('/store_books/:id', async(req, res) => {
 })
 
 
+router.get('/store_books_with_categories_and_filter', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const category = req.query.category;
+        const sortBy = req.query.sortBy;
+
+        const skip = (page - 1) * limit;
+
+        let orderBy = {};
+        switch (sortBy) {
+            case 'newest':
+                orderBy = { publishedDate: 'desc' };
+                break;
+            case 'oldest':
+                orderBy = { publishedDate: 'asc' };
+                break;
+            case 'most_discounted':
+                orderBy = { discount: 'desc' };
+                break;
+            case 'lowest_price':
+                orderBy = { price: 'asc' };
+                break;
+            case 'highest_price':
+                orderBy = { price: 'desc' };
+                break;
+            default:
+                orderBy = { publishedDate: 'desc' };
+        }
+
+        const where = !category || category === 'all' ? {} : { category }; 
+
+        const storeBooks = await prisma.storeBook.findMany({
+            where,
+            skip,
+            take: limit,
+            orderBy,
+        });
+
+        const totalBooks = await prisma.storeBook.count({ where });
+        const totalPages = Math.ceil(totalBooks / limit);
+
+        const categories = await prisma.storeBook.findMany({
+            select: {
+                category: true,
+            },
+            distinct: ['category'],
+        });
+
+        return res.status(200).json({
+            storeBooks,
+            currentPage: page,
+            totalPages,
+            totalBooks,
+            categories: categories.map(c => c.category),
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
+
 
 export default router
