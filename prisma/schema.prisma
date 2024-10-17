@@ -34,6 +34,7 @@ model User {
   requests Request[]
   reviews BookReview[]
   reports Report[]
+  reportReplies ReportReplies[]
   notifications Notifications[]
 
   @@map("users")
@@ -298,5 +299,7 @@ model ReportReplies {
   text  String
   createdAt DateTime @default(now())
   report  Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
   reportId Int
 }
