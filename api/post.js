@@ -211,5 +211,23 @@ router.post('/deduct-coins/:userId', async (req, res) => {
   }
 });
 
+router.post('/userPurchasedBooks', async(req, res) => {
+  const { userId, bookId } = req.body;
+
+  try {
+    const purchase = await prisma.userPurchasedBook.create({
+      data: {
+        userId: userId,
+        bookId: bookId,
+      },
+    });
+
+    res.status(201).json({ message: "Book purchased successfully", purchase });
+  } catch (error) {
+    console.error("Error purchasing book:", error);
+    res.status(500).json({ error: "An error occurred while purchasing the book" });
+  }
+})
+
 
 export default router;
