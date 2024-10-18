@@ -445,19 +445,20 @@ router.get('/purchasedBooks/:id', async (req, res) => {
 
   try {
     
-    const totalBooks = await prisma.purchase.count({
+    const totalBooks = await prisma.userPurchasedBook.count({
       where: {
         userId: userId,
       },
     });
 
     
-    const purchasedBooks = await prisma.purchase.findMany({
+    const purchasedBooks = await prisma.userPurchasedBook.findMany({
       where: {
         userId: userId,
       },
       include: {
         book: true,
+        user: true,
       },
       skip: offset, 
       take: limit,  
@@ -617,5 +618,6 @@ router.get('/my-books/:userId', async(req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 export default router;
