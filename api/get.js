@@ -399,6 +399,7 @@ router.get('/my-coins/:userId', async (req, res) => {
       data: {
         recentTransactions,
         totalCoins: totalCoins._sum.value || 0,
+        remainingCoins:  totalAdditions._sum.value - totalDeductions._sum.value,
         totalAdditions: totalAdditions._sum.value || 0,
         totalDeductions: Math.abs(totalDeductions._sum.value) || 0, // Convert to positive number for easier reading
       }
