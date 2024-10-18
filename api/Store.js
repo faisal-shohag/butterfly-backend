@@ -156,6 +156,21 @@ router.get('/store_books_with_categories_and_filter', async (req, res) => {
     }
 });
 
+router.get('/latest_store_books', async(req, res) => {
+    try {
+        const latestStoreBooks = await prisma.storeBook.findMany({
+            orderBy: {
+                publishedDate: 'desc'
+            },
+            take: 10
+        })
+        return res.status(200).json({latestStoreBooks})
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({error: error.message})
+    }
+})
+
 
 
 export default router
