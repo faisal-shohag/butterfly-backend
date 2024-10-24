@@ -52,6 +52,29 @@ router.get('/store_books/:id', async(req, res) => {
         const storeBook = await prisma.storeBook.findUnique({
             where: {
                 id: parseInt(id)
+            },
+          
+        })
+        return res.status(200).json({storeBook})
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({error: error.message})
+    }
+})
+
+router.get('/store_books-with-reviews/:id', async(req, res) => {
+    const id = req.params.id;
+    try {
+        const storeBook = await prisma.storeBook.findUnique({
+            where: {
+                id: parseInt(id)
+            },
+            include: {
+                reviews: {
+                    include: {
+                        user: true
+                    }
+                }
             }
         })
         return res.status(200).json({storeBook})
@@ -60,6 +83,30 @@ router.get('/store_books/:id', async(req, res) => {
         return res.status(500).json({error: error.message})
     }
 })
+
+// add reviews
+router.post('/store_books/reviews', async(req, res) => {
+    const { bookId, rating, review, userId } = req.body;
+    
+    try {
+        const newReview = await prisma.bookReview.create({
+            data: {
+                bookId: parseInt(bookId),
+                rating: parseFloat(rating),
+                review,
+                userId
+            },
+            include: {
+                user: true
+            }
+        });
+        
+        return res.status(201).json({ review: newReview });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error: error.message });
+    }
+});
 
 router.put('/store_books/:id', async(req, res) => {
     const id = req.params.id;
