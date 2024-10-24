@@ -219,5 +219,108 @@ router.get('/latest_store_books', async(req, res) => {
 })
 
 
+router.get('/trending-books', async (req, res) => {
+    try {
+        const trendingBooks = await prisma.storeBook.findMany({
+            where: {
+                category: {
+                    contains: 'Trending',
+                    mode: 'insensitive' // Case-insensitive search
+                }
+            },
+            take: 5, // Limit to 5 records
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                author: true,
+                price: true,
+                coin: true,
+                discount: true,
+                category: true,
+                language: true,
+                cover: true,
+                publishedDate: true
+            },
+            orderBy: {
+                publishedDate: 'desc' // Sort by latest published date
+            }
+        });
+
+        if (!trendingBooks.length) {
+            return res.status(404).json({
+                success: false,
+                message: 'No trending books found'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: trendingBooks,
+            message: 'Trending books retrieved successfully'
+        });
+
+    } catch (error) {
+        console.error('Error fetching trending books:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+});
+
+
+router.get('/popular-books', async (req, res) => {
+    try {
+        const trendingBooks = await prisma.storeBook.findMany({
+            where: {
+                category: {
+                    contains: 'Popular',
+                    mode: 'insensitive' // Case-insensitive search
+                }
+            },
+            take: 5, // Limit to 5 records
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                author: true,
+                price: true,
+                coin: true,
+                discount: true,
+                category: true,
+                language: true,
+                cover: true,
+                publishedDate: true
+            },
+            orderBy: {
+                publishedDate: 'desc' // Sort by latest published date
+            }
+        });
+
+        if (!trendingBooks.length) {
+            return res.status(404).json({
+                success: false,
+                message: 'No trending books found'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: trendingBooks,
+            message: 'Trending books retrieved successfully'
+        });
+
+    } catch (error) {
+        console.error('Error fetching trending books:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+});
+
 
 export default router
