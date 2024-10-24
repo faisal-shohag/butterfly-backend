@@ -58,13 +58,14 @@ router.post("/add_book/:id", async (req, res) => {
 });
 
 router.post('/toggle-book-request', async (req, res) => {
-  const { userId, bookId, message } = req.body;
+  const { userId, bookId, message, requestedTo } = req.body;
 
   try {
     const existingRequest = await prisma.request.findFirst({
       where: {
         requesterId: userId,
         bookId: bookId,
+        requestedTo: requestedTo,
       },
     });
 
