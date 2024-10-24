@@ -66,6 +66,16 @@ router.get("/users/:id", async (req, res) => {
       include: {
         posts: true,
         books: true,
+        purchasedBooks: true,
+        _count: {
+          select: {
+            followers: true,
+            following: true,
+            posts: true,
+            books: true,
+            purchasedBooks: true,
+          },
+        },
       },
     });
     return res.status(200).json(user);

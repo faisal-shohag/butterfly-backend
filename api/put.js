@@ -15,6 +15,28 @@ router.put('/users/:id', async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 })
+router.patch("/user-update/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { bio, phone, address } = req.body;
+
+    const updatedUser = await prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        bio,
+        phone,
+        address,
+      },
+    });
+
+    return res.status(200).json(updatedUser);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 
 router.post('/add_book/:id', async (req, res) => {
