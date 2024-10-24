@@ -620,4 +620,130 @@ router.get('/my-books/:userId', async(req, res) => {
 });
 
 
+// search
+const validateSearchParams = (req, res, next) => {
+  const { query = "", type = "books", page = "1", limit = "10" } = req.query;
+  
+  if (!["books", "storebooks"].includes(type)) {
+    return res.status(400).json({ error: "Invalid type. Must be 'books' or 'storebooks'" });
+  }
+
+  req.searchParams = {
+    query,
+    type,
+    page: parseInt(page),
+    limit: parseInt(limit),
+    skip: (parseInt(page) - 1) * parseInt(limit)
+  };
+
+  next();
+};
+
+// Search endpoint
+router.get('/search', validateSearchParams, async (req, res) => {
+  try {
+    const { query, type, skip, limit } = req.searchParams;
+
+    if (type === "books") {
+      const [books, total] = await Promise.all([
+        prisma.book.findMany({
+          where: {
+            OR: [
+              { title: { contains: query, mode: "insensitive" } },
+              { author: { contains: query, mode: "insensitive" } },
+              { description: { contains: query, mode: "insensitive" } },
+              { genre: { contains: query, mode: "insensitive" } },
+            ],
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+                username: true,
+              },
+            },
+            likes: true,
+            samplePhotos: true,
+          },
+          skip,
+          take: limit,
+          orderBy: {
+            createdAt: 'desc',
+          },
+        }),
+        prisma.book.count({
+          where: {
+            OR: [
+              { title: { contains: query, mode: "insensitive" } },
+              { author: { contains: query, mode: "insensitive" } },
+              { description: { contains: query, mode: "insensitive" } },
+              { genre: { contains: query, mode: "insensitive" } },
+            ],
+          },
+        }),
+      ]);
+
+      return res.json({
+        books,
+        total,
+        hasMore: skip + books.length < total,
+      });
+    } else {
+      const [storeBooks, total] = await Promise.all([
+        prisma.storeBook.findMany({
+          where: {
+            OR: [
+              { title: { contains: query, mode: "insensitive" } },
+              { author: { contains: query, mode: "insensitive" } },
+              { description: { contains: query, mode: "insensitive" } },
+              { category: { contains: query, mode: "insensitive" } },
+              { language: { contains: query, mode: "insensitive" } },
+            ],
+          },
+          include: {
+            reviews: {
+              select: {
+                rating: true,
+              },
+            },
+          },
+          skip,
+          take: limit,
+          orderBy: {
+            publishedDate: 'desc',
+          },
+        }),
+        prisma.storeBook.count({
+          where: {
+            OR: [
+              { title: { contains: query, mode: "insensitive" } },
+              { author: { contains: query, mode: "insensitive" } },
+              { description: { contains: query, mode: "insensitive" } },
+              { category: { contains: query, mode: "insensitive" } },
+              { language: { contains: query, mode: "insensitive" } },
+            ],
+          },
+        }),
+      ]);
+      const storeBooksWithRating = storeBooks.map(book => ({
+        ...book,
+        averageRating: book.reviews.length > 0
+          ? book.reviews.reduce((acc, review) => acc + review.rating, 0) / book.reviews.length
+          : 0,
+      }));
+
+      return res.json({
+        books: storeBooksWithRating,
+        total,
+        hasMore: skip + storeBooks.length < total,
+      });
+    }
+  } catch (error) {
+    console.error('Search error:', error);
+    return res.status(500).json({ error: 'Failed to search books' });
+  }
+});
+
 export default router;
