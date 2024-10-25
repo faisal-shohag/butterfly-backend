@@ -18,13 +18,14 @@ router.put('/users/:id', async (req, res) => {
 router.patch("/user-update/:id", async (req, res) => {
   try {
     const id = req.params.id;
-    const { bio, phone, address } = req.body;
+    const { name, bio, phone, address } = req.body;
 
     const updatedUser = await prisma.user.update({
       where: {
         id,
       },
       data: {
+        name,
         bio,
         phone,
         address,
